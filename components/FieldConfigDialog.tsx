@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { FieldType, Column, Table } from '../types';
+import { FieldType, Column, Table, SearchReferenceFilter } from '../types';
 import { ICONS, TAG_COLORS, TagColorKey, getTagColor, parseJsonArray } from '../constants';
 import { Tooltip } from './Tooltip';
 import { generateSmartFormula, generateFieldOptions } from '../geminiService';
@@ -822,9 +822,13 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({ tableId, column, 
   // Search Reference Specific States (now in config)
   const [queryTargetTableId, setQueryTargetTableId] = useState(column?.config?.search_reference_config?.target_table_id || column?.config?.target_table_id || '');
   const [queryTargetFieldId, setQueryTargetFieldId] = useState(column?.config?.search_reference_config?.target_field_id || column?.config?.target_field_id || '');
-  const [queryMatchTargetFieldId, setQueryMatchTargetFieldId] = useState(column?.config?.search_reference_config?.filters?.[0]?.target_condition_field_id || column?.config?.match_target_field_id || '');
-  const [queryMatchCurrentFieldId, setQueryMatchCurrentFieldId] = useState(column?.config?.search_reference_config?.filters?.[0]?.current_field_id || column?.config?.match_current_field_id || '');
-  const [queryOperator, setQueryOperator] = useState(column?.config?.search_reference_config?.filters?.[0]?.operator || 'EQ');
+  const [queryFilters, setQueryFilters] = useState<SearchReferenceFilter[]>(column?.config?.search_reference_config?.filters || [
+    {
+      target_condition_field_id: column?.config?.match_target_field_id || '',
+      operator: 'EQ',
+      current_field_id: column?.config?.match_current_field_id || ''
+    }
+  ]);
   const [searchConditions, setSearchConditions] = useState<{label: string, value: string}[]>([]);
   const [targetTableColumns, setTargetTableColumns] = useState<Column[]>([]);
 
@@ -1124,17 +1128,13 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({ tableId, column, 
             search_reference_config: type === FieldType.SEARCH_REFERENCE ? {
                 target_table_id: queryTargetTableId,
                 target_field_id: queryTargetFieldId,
-                filters: [{
-                    target_condition_field_id: queryMatchTargetFieldId,
-                    operator: queryOperator,
-                    current_field_id: queryMatchCurrentFieldId
-                }]
+                filters: queryFilters
             } : undefined,
             // Legacy fields for backward compatibility (required by backend)
             target_table_id: type === FieldType.SEARCH_REFERENCE ? queryTargetTableId : undefined,
             target_field_id: type === FieldType.SEARCH_REFERENCE ? queryTargetFieldId : undefined,
-            match_target_field_id: type === FieldType.SEARCH_REFERENCE ? queryMatchTargetFieldId : undefined,
-            match_current_field_id: type === FieldType.SEARCH_REFERENCE ? queryMatchCurrentFieldId : undefined,
+            match_target_field_id: type === FieldType.SEARCH_REFERENCE ? queryFilters[0]?.target_condition_field_id : undefined,
+            match_current_field_id: type === FieldType.SEARCH_REFERENCE ? queryFilters[0]?.current_field_id : undefined,
             
             // Save defaultValue in config
             defaultValue: defaultValue,
@@ -1406,7 +1406,7 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({ tableId, column, 
                                     onChange={(val) => {
                                         setQueryTargetTableId(val);
                                         setQueryTargetFieldId('');
-                                        setQueryMatchTargetFieldId('');
+                                        setQueryFilters([{ target_condition_field_id: '', operator: 'EQ', current_field_id: '' }]);
                                     }}
                                 />
                             </div>
@@ -1427,42 +1427,77 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({ tableId, column, 
 
                     <div>
                         <label className="block text-xs font-semibold text-gray-400 uppercase mb-2">查找条件</label>
-                        <div className="flex items-center gap-2">
-                            <div className="flex-1">
-                                <Select 
-                                    portal={true}
-                                    options={[
-                                        { label: '引用表中的字段', value: '' },
-                                        ...targetTableColumns.map(c => ({ label: c.name, value: c.id }))
-                                    ]}
-                                    value={queryMatchTargetFieldId}
-                                    onChange={(val) => setQueryMatchTargetFieldId(val)}
-                                    disabled={!queryTargetTable}
-                                />
-                            </div>
-                            
-                            <div className="flex-1">
-                                <Select 
-                                    portal={true}
-                                    options={searchConditions.length > 0 ? searchConditions : [{ label: '等于', value: 'EQ' }]}
-                                    value={queryOperator}
-                                    onChange={(val) => setQueryOperator(val)}
-                                />
-                            </div>
+                        <div className="flex flex-col gap-2">
+                            {queryFilters.map((filter, index) => (
+                                <div key={index} className="flex items-center gap-2">
+                                    <div className="flex-1">
+                                        <Select 
+                                            portal={true}
+                                            options={[
+                                                { label: '引用表中的字段', value: '' },
+                                                ...targetTableColumns.map(c => ({ label: c.name, value: c.id }))
+                                            ]}
+                                            value={filter.target_condition_field_id}
+                                            onChange={(val) => {
+                                                const newFilters = [...queryFilters];
+                                                newFilters[index].target_condition_field_id = val;
+                                                setQueryFilters(newFilters);
+                                            }}
+                                            disabled={!queryTargetTable}
+                                        />
+                                    </div>
+                                    
+                                    <div className="flex-1">
+                                        <Select 
+                                            portal={true}
+                                            options={searchConditions.length > 0 ? searchConditions : [{ label: '等于', value: 'EQ' }]}
+                                            value={filter.operator}
+                                            onChange={(val) => {
+                                                const newFilters = [...queryFilters];
+                                                newFilters[index].operator = val;
+                                                setQueryFilters(newFilters);
+                                            }}
+                                        />
+                                    </div>
 
-                            <div className="flex-1">
-                                <Select 
-                                    portal={true}
-                                    options={[
-                                        { label: '当前表中的字段', value: '' },
-                                        ...allColumns.map(c => ({ label: c.name, value: c.id }))
-                                    ]}
-                                    value={queryMatchCurrentFieldId}
-                                    onChange={(val) => setQueryMatchCurrentFieldId(val)}
-                                />
-                            </div>
+                                    <div className="flex-1 flex items-center gap-1">
+                                        <div className="flex-1">
+                                            <Select 
+                                                portal={true}
+                                                options={[
+                                                    { label: '当前表中的字段', value: '' },
+                                                    ...allColumns.map(c => ({ label: c.name, value: c.id }))
+                                                ]}
+                                                value={filter.current_field_id || ''}
+                                                onChange={(val) => {
+                                                    const newFilters = [...queryFilters];
+                                                    newFilters[index].current_field_id = val;
+                                                    setQueryFilters(newFilters);
+                                                }}
+                                            />
+                                        </div>
+                                        {queryFilters.length > 1 && (
+                                            <button
+                                                className="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-gray-100 transition-colors"
+                                                onClick={() => {
+                                                    const newFilters = [...queryFilters];
+                                                    newFilters.splice(index, 1);
+                                                    setQueryFilters(newFilters);
+                                                }}
+                                            >
+                                                <ICONS.Close className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                        <div className="mt-2 text-primary-600 text-xs font-medium cursor-pointer hover:underline flex items-center gap-1">
+                        <div 
+                            className="mt-2 text-primary-600 text-xs font-medium cursor-pointer hover:underline flex items-center gap-1 w-fit"
+                            onClick={() => {
+                                setQueryFilters([...queryFilters, { target_condition_field_id: '', operator: 'EQ', current_field_id: '' }]);
+                            }}
+                        >
                             <ICONS.Plus className="w-3 h-3"/> 添加条件
                         </div>
                     </div>
@@ -1772,15 +1807,28 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({ tableId, column, 
        if (top + 600 > window.innerHeight) {
            top = window.innerHeight - 600;
        }
-       if (left + 340 > window.innerWidth) {
-           left = window.innerWidth - 340;
+       const dialogWidth = type === FieldType.SEARCH_REFERENCE ? 420 : 320;
+       if (left + dialogWidth > window.innerWidth - 20) {
+           // If it goes beyond the right edge, push it to the left, but make sure it doesn't go off the left edge.
+           // If it's a popover next to an element, we might want to flip it to the left side of the element.
+           if (anchorEl instanceof HTMLElement) {
+               const rect = anchorEl.getBoundingClientRect();
+               // Try to place on the left if there's no room on the right
+               if (rect.left - dialogWidth - 8 > 20) {
+                   left = rect.left - dialogWidth - 8;
+               } else {
+                   left = window.innerWidth - dialogWidth - 20;
+               }
+           } else {
+               left = window.innerWidth - dialogWidth - 20;
+           }
        }
        if (top < 0) top = 20;
        if (left < 0) left = 20;
 
        setPosition({ top, left });
     }
-  }, [anchorEl, mode]);
+  }, [anchorEl, mode, type]);
 
   const content = (
       <div 

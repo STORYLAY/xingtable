@@ -2301,7 +2301,7 @@ const GridView: React.FC<GridViewProps> = ({
             </div>
 
             {/* The Popup */}
-            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-[102] p-3 min-w-[320px] flex flex-col gap-3">
+            <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-[102] p-3 min-w-[320px] flex flex-col gap-3">
               <div className="flex flex-wrap gap-2 max-h-[300px] overflow-y-auto">
                 {files.map((f: any, i: number) => (
                   <div

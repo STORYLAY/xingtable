@@ -4960,17 +4960,17 @@ const App: React.FC<AppProps> = ({
                     <button
                       onClick={handleExportTable}
                       className="flex items-center gap-1 px-3 py-1.5 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded transition-colors font-medium text-xs mr-1"
-                      title="导出表格"
+                      title="导出数据"
                     >
-                      <ICONS.Download className="w-4 h-4" /> 导出表格
+                      <ICONS.Download className="w-4 h-4" /> 导出数据
                     </button>
                     {!isTableReadonly && (
                       <button
                         onClick={() => setIsAppendDialogOpen(true)}
                         className="flex items-center gap-1 px-3 py-1.5 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded transition-colors font-medium text-xs mr-2"
-                        title="导入表格"
+                        title="导入数据"
                       >
-                        <ICONS.Import className="w-4 h-4" /> 导入表格
+                        <ICONS.Import className="w-4 h-4" /> 导入数据
                       </button>
                     )}
                   </div>
