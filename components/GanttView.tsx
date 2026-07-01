@@ -163,6 +163,7 @@ const GanttView: React.FC<GanttViewProps> = ({
 
   // --- Resizing Logic ---
   const [resizingCol, setResizingCol] = useState<{ id: string, startX: number, startWidth: number, currentWidth: number } | null>(null);
+  const [isLeftPanelHidden, setIsLeftPanelHidden] = useState(false);
   const [activeEditingCell, setActiveEditingCell] = useState<{ rowId: string, colId: string, rect?: DOMRect } | null>(null);
   const [editingValue, setEditingValue] = useState<any>(null);
   const isSavingRef = useRef(false);
@@ -1181,54 +1182,87 @@ const GanttView: React.FC<GanttViewProps> = ({
           </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Collapse button when left panel is hidden */}
+        {isLeftPanelHidden && (
+            <button
+                onClick={() => setIsLeftPanelHidden(false)}
+                className="absolute left-1.5 top-[3px] z-[40] w-6 h-6 flex items-center justify-center text-gray-500 hover:text-primary-600 hover:bg-gray-100 rounded transition-colors cursor-pointer bg-[#fbfcfd]"
+                title="展开字段"
+            >
+                <ICONS.ChevronsRight className="w-4 h-4 text-gray-500" />
+            </button>
+        )}
+
         {/* Left Panel: Grid */}
         <div 
-            className="border-r border-gray-200 flex flex-col bg-white shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-20 shrink-0 transition-[width] duration-75 ease-out overflow-x-auto scrollbar-thin scrollbar-thumb-gray-200" 
-            style={{ width: totalLeftPanelWidth, maxWidth: '60%' }}
+            className={`border-r border-gray-200 flex flex-col bg-white z-20 shrink-0 transition-[width] duration-75 ease-out relative ${isLeftPanelHidden ? 'border-r-0 shadow-none' : 'shadow-[2px_0_5px_rgba(0,0,0,0.05)]'}`} 
+            style={{ 
+                width: isLeftPanelHidden ? 0 : totalLeftPanelWidth, 
+                maxWidth: '60%',
+            }}
         >
-          {/* Header */}
-          <div className="h-[60px] border-b border-gray-200 flex bg-[#fbfcfd] shrink-0" style={{ width: totalLeftPanelWidth }}>
-             <div 
-                 style={{ width: indexColWidth }} 
-                 className="border-r border-gray-100 flex items-center justify-center text-gray-400 shrink-0 cursor-pointer"
-                 onClick={handleSelectAll}
-             >
-                 {(() => {
-                     const selectableIds = getSelectableRowIds(rows);
-                     const isAllSelected = selectableIds.length > 0 && selectedRowIds.size === selectableIds.length;
-                     const isSomeSelected = selectedRowIds.size > 0 && !isAllSelected;
-                     if (isAllSelected) return <CheckboxChecked />;
-                     if (isSomeSelected) return <div className="w-3 h-3 bg-primary-500 rounded flex items-center justify-center"><div className="w-2 h-0.5 bg-white rounded-sm" /></div>;
-                     return <ICONS.Grid />;
-                 })()}
-             </div>
-             {columns.map((col, idx) => {
-                 const width = resizingCol?.id === col.id ? resizingCol.currentWidth : (col.width || 150);
-                 return (
-                 <div 
-                    key={col.id} 
-                    className="border-r border-gray-100 px-3 flex flex-col justify-center overflow-hidden relative group shrink-0"
-                    style={{ width }}
-                 >
-                     <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                         {FIELD_TYPE_ICONS[col.type]}
-                         <span className="truncate">{col.name}</span>
-                     </div>
-                     {/* Resizer */}
+          {/* Collapse button on the top right of the visible area */}
+          {!isLeftPanelHidden && (
+              <button
+                  onClick={() => setIsLeftPanelHidden(true)}
+                  className="absolute right-2 top-[3px] z-[30] w-6 h-6 flex items-center justify-center text-gray-400 hover:text-primary-600 hover:bg-gray-100 rounded transition-colors cursor-pointer border border-gray-200 bg-white shadow-sm"
+                  title="收起字段"
+              >
+                  <ICONS.ChevronsLeft className="w-4 h-4" />
+              </button>
+          )}
+
+          {/* Horizontally scrollable container */}
+          <div className="flex-1 flex flex-col overflow-x-auto scrollbar-thin scrollbar-thumb-gray-200 w-full h-full">
+              {/* Header */}
+              <div className="h-[60px] border-b border-gray-200 flex flex-col bg-[#fbfcfd] shrink-0 overflow-hidden" style={{ width: totalLeftPanelWidth }}>
+                 {/* Top Row: Empty space (aligned with dates) */}
+                 <div className="h-[30px] border-b border-gray-100 flex items-center justify-end" />
+                 
+                 {/* Bottom Row: Column names & select all */}
+                 <div className="h-[30px] flex items-center">
                      <div 
-                        className="absolute right-0 top-0 bottom-0 w-4 translate-x-1/2 cursor-col-resize z-50 flex justify-center group/resizer"
-                        onMouseDown={(e) => startResizeCol(e, col.id, width)}
-                        onClick={(e) => e.stopPropagation()} 
+                         style={{ width: indexColWidth }} 
+                         className="h-full border-r border-gray-100 flex items-center justify-center text-gray-400 shrink-0 cursor-pointer"
+                         onClick={handleSelectAll}
                      >
-                        <div className={`w-[2px] h-full transition-colors duration-150 ${resizingCol?.id === col.id ? 'bg-primary-600' : 'bg-transparent group-hover/resizer:bg-primary-400'}`} />
+                         {(() => {
+                             const selectableIds = getSelectableRowIds(rows);
+                             const isAllSelected = selectableIds.length > 0 && selectedRowIds.size === selectableIds.length;
+                             const isSomeSelected = selectedRowIds.size > 0 && !isAllSelected;
+                             if (isAllSelected) return <CheckboxChecked />;
+                             if (isSomeSelected) return <div className="w-3 h-3 bg-primary-500 rounded flex items-center justify-center"><div className="w-2 h-0.5 bg-white rounded-sm" /></div>;
+                             return <ICONS.Grid />;
+                         })()}
                      </div>
+                     {columns.map((col, idx) => {
+                         const width = resizingCol?.id === col.id ? resizingCol.currentWidth : (col.width || 150);
+                         return (
+                         <div 
+                            key={col.id} 
+                            className="h-full border-r border-gray-100 px-3 flex items-center overflow-hidden relative group shrink-0"
+                            style={{ width }}
+                         >
+                             <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                                 {FIELD_TYPE_ICONS[col.type]}
+                                 <span className="truncate">{col.name}</span>
+                             </div>
+                             {/* Resizer */}
+                             <div 
+                                className="absolute right-0 top-0 bottom-0 w-4 translate-x-1/2 cursor-col-resize z-50 flex justify-center group/resizer"
+                                onMouseDown={(e) => startResizeCol(e, col.id, width)}
+                                onClick={(e) => e.stopPropagation()} 
+                             >
+                                <div className={`w-[2px] h-full transition-colors duration-150 ${resizingCol?.id === col.id ? 'bg-primary-600' : 'bg-transparent group-hover/resizer:bg-primary-400'}`} />
+                             </div>
+                         </div>
+                         );
+                     })}
                  </div>
-                 );
-             })}
-          </div>
-          {/* Rows */}
-          <div className="flex-1 overflow-hidden bg-white scrollbar-hide" ref={leftPanelRef} style={{ width: totalLeftPanelWidth }} onScroll={handleScroll}>
+              </div>
+              {/* Rows */}
+              <div className="flex-1 overflow-hidden bg-white scrollbar-hide" ref={leftPanelRef} style={{ width: totalLeftPanelWidth }} onScroll={handleScroll}>
             {flattenedRows.map(({ row, level, isGroup }, idx) => {
               const isSelected = selectedRowIds.has(row.id);
               
@@ -1625,6 +1659,7 @@ const GanttView: React.FC<GanttViewProps> = ({
             ))}
           </div>
         </div>
+        </div>
 
         {/* Right Panel: Timeline */}
         <div className="flex-1 overflow-auto bg-white relative scrollbar-thin scrollbar-thumb-gray-200" ref={rightPanelRef} onScroll={handleScroll}>
@@ -1635,7 +1670,7 @@ const GanttView: React.FC<GanttViewProps> = ({
                  <div className="flex border-b border-gray-100 h-[30px]">
                      {headerGroups.map((g, i) => (
                          <div key={i} className="border-r border-gray-100 relative" style={{ width: g.width, minWidth: g.width }}>
-                             <div className="sticky left-0 px-2 flex items-center h-full text-xs font-medium text-gray-500 truncate w-max max-w-full">
+                             <div className="sticky px-2 flex items-center h-full text-xs font-medium text-gray-500 truncate w-max max-w-full" style={{ left: isLeftPanelHidden ? 32 : 0 }}>
                                  {g.label}
                              </div>
                          </div>

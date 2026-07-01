@@ -296,6 +296,7 @@ const KanbanView: React.FC<KanbanViewProps> = ({
                                     key={row.id} 
                                     onClick={() => {
                                         if (editingCardId !== row.id) setEditingCardId(row.id);
+                                        if (onOpenDetail) onOpenDetail(row);
                                     }}
                                     onContextMenu={(e) => handleContextMenu(e, row)}
                                     className={`bg-white p-3 rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.08)] border transition-all group min-h-[40px] relative ${editingCardId === row.id ? 'ring-2 ring-primary-500/20 border-primary-400' : 'border-transparent hover:border-primary-300 hover:shadow-md cursor-pointer'}`}

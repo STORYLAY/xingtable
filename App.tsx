@@ -161,12 +161,18 @@ const App: React.FC<AppProps> = ({
   readonly = false,
 }) => {
   // --- Data State ---
-  const isSharedMode = typeof window !== 'undefined' && window.location.hostname.includes('ais-pre');
+  const isSharedMode =
+    typeof window !== "undefined" &&
+    window.location.hostname.includes("ais-pre");
   const [tables, setTables] = useState<Table[]>([]);
   // ... existing state ...
-  const initialSearchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-  const searchId = initialSearchParams.get('search_id');
-  const [activeTableId, setActiveTableId] = useState<string | null>(searchId || defaultTableId);
+  const initialSearchParams = new URLSearchParams(
+    typeof window !== "undefined" ? window.location.search : "",
+  );
+  const searchId = initialSearchParams.get("search_id");
+  const [activeTableId, setActiveTableId] = useState<string | null>(
+    searchId || defaultTableId,
+  );
   const activeTableIdRef = useRef(activeTableId);
   useEffect(() => {
     activeTableIdRef.current = activeTableId;
@@ -175,26 +181,26 @@ const App: React.FC<AppProps> = ({
   useEffect(() => {
     const handleUrlChange = () => {
       const currentParams = new URLSearchParams(window.location.search);
-      const currentSearchId = currentParams.get('search_id');
+      const currentSearchId = currentParams.get("search_id");
       if (currentSearchId && currentSearchId !== activeTableIdRef.current) {
         setActiveTableId(currentSearchId);
       }
     };
-    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener("popstate", handleUrlChange);
     // Also listen to pushState/replaceState if they are overridden by a parent app
     const originalPushState = history.pushState;
     const originalReplaceState = history.replaceState;
-    history.pushState = function(...args) {
+    history.pushState = function (...args) {
       originalPushState.apply(this, args);
       handleUrlChange();
     };
-    history.replaceState = function(...args) {
+    history.replaceState = function (...args) {
       originalReplaceState.apply(this, args);
       handleUrlChange();
     };
 
     return () => {
-      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener("popstate", handleUrlChange);
       history.pushState = originalPushState;
       history.replaceState = originalReplaceState;
     };
@@ -210,7 +216,12 @@ const App: React.FC<AppProps> = ({
   const [page, setPage] = useState(1);
   const pageRef = useRef(1);
 
-  const isTableReadonly = readonly || isSharedMode || (activeTable ? (activeTable.can_edit === false && activeTable.can_manage === false) : false);
+  const isTableReadonly =
+    readonly ||
+    isSharedMode ||
+    (activeTable
+      ? activeTable.can_edit === false && activeTable.can_manage === false
+      : false);
 
   const [hasMore, setHasMore] = useState(false);
   const dragControls = useDragControls();
@@ -286,11 +297,13 @@ const App: React.FC<AppProps> = ({
   const [isTokenDialogOpen, setIsTokenDialogOpen] = useState(false);
   const [isCollaboratorDialogOpen, setIsCollaboratorDialogOpen] =
     useState(false);
-  const [isTableMetadataDialogOpen, setIsTableMetadataDialogOpen] = useState(false);
-  const [tableMetadataMode, setTableMetadataMode] = useState<'add' | 'edit'>('add');
-  const [editingTableForMetadata, setEditingTableForMetadata] = useState<Table | null>(null);
-
-
+  const [isTableMetadataDialogOpen, setIsTableMetadataDialogOpen] =
+    useState(false);
+  const [tableMetadataMode, setTableMetadataMode] = useState<"add" | "edit">(
+    "add",
+  );
+  const [editingTableForMetadata, setEditingTableForMetadata] =
+    useState<Table | null>(null);
 
   const [isOnlineUsersOpen, setIsOnlineUsersOpen] = useState(false);
   const [activeOnlineSid, setActiveOnlineSid] = useState<string | null>(null);
@@ -384,36 +397,42 @@ const App: React.FC<AppProps> = ({
     [broadcastCursorPosition, userProfile],
   );
 
-  const handleRowsSyncUpdated = useCallback((syncedRows: Row[]) => {
-    const activeView = activeTable?.views?.find((v) => v.id === activeViewId);
-    const useServerGrouping =
-      activeView?.config?.groups &&
-      activeView.config.groups.length > 0 &&
-      activeView.type !== ViewType.KANBAN;
+  const handleRowsSyncUpdated = useCallback(
+    (syncedRows: Row[]) => {
+      const activeView = activeTable?.views?.find((v) => v.id === activeViewId);
+      const useServerGrouping =
+        activeView?.config?.groups &&
+        activeView.config.groups.length > 0 &&
+        activeView.type !== ViewType.KANBAN;
 
-    if (useServerGrouping) {
-      setRows((prevRows) => {
-        const syncedMap = new Map();
-        syncedRows.forEach(r => syncedMap.set(r.id, r));
-        
-        const updateTree = (nodes: Row[]): Row[] => {
-          return nodes.map(node => {
-            let updatedNode = { ...node };
-            if (!node.isGroup && syncedMap.has(node.id)) {
-              updatedNode.data = { ...node.data, ...syncedMap.get(node.id).data };
-            }
-            if (node.children) {
-              updatedNode.children = updateTree(node.children);
-            }
-            return updatedNode;
-          });
-        };
-        return updateTree(prevRows);
-      });
-    } else {
-      setRows(buildRowTree(syncedRows));
-    }
-  }, [activeTable, activeViewId]);
+      if (useServerGrouping) {
+        setRows((prevRows) => {
+          const syncedMap = new Map();
+          syncedRows.forEach((r) => syncedMap.set(r.id, r));
+
+          const updateTree = (nodes: Row[]): Row[] => {
+            return nodes.map((node) => {
+              let updatedNode = { ...node };
+              if (!node.isGroup && syncedMap.has(node.id)) {
+                updatedNode.data = {
+                  ...node.data,
+                  ...syncedMap.get(node.id).data,
+                };
+              }
+              if (node.children) {
+                updatedNode.children = updateTree(node.children);
+              }
+              return updatedNode;
+            });
+          };
+          return updateTree(prevRows);
+        });
+      } else {
+        setRows(buildRowTree(syncedRows));
+      }
+    },
+    [activeTable, activeViewId],
+  );
 
   const {
     updateCell: syncUpdateCell,
@@ -455,15 +474,15 @@ const App: React.FC<AppProps> = ({
     const handleRemoteCommentCreated = (event: any) => {
       if (!event) return;
       if (event.success === false) return;
-      
+
       const payloadData = event.data || {};
       const tableId = payloadData.table_id || event.table_id;
-      
+
       if (tableId && activeTableId && tableId !== activeTableId) return;
 
       const rowId = String(payloadData.row_id || event.row_id || "");
       const colId = String(payloadData.column_id || event.column_id || "");
-      
+
       if (!rowId || !colId) return;
 
       const countKey = `${rowId}_${colId}`;
@@ -474,10 +493,13 @@ const App: React.FC<AppProps> = ({
         let newCount = prevCount + 1;
         if (event.total !== undefined && event.total !== null) {
           newCount = Number(event.total);
-        } else if (payloadData.total !== undefined && payloadData.total !== null) {
+        } else if (
+          payloadData.total !== undefined &&
+          payloadData.total !== null
+        ) {
           newCount = Number(payloadData.total);
         }
-        
+
         return {
           ...prev,
           [countKey]: isNaN(newCount) ? prevCount + 1 : newCount,
@@ -513,16 +535,17 @@ const App: React.FC<AppProps> = ({
     const handleRemoteCommentDeleted = (event: any) => {
       if (!event) return;
       if (event.success === false) return;
-      
+
       const payloadData = event.data || {};
       const tableId = payloadData.table_id || event.table_id;
-      
+
       if (tableId && activeTableId && tableId !== activeTableId) return;
 
       const rowId = String(payloadData.row_id || event.row_id || "");
       const colId = String(payloadData.column_id || event.column_id || "");
-      const targetCommentId = payloadData.comment_id || payloadData.id || event.comment_id;
-      
+      const targetCommentId =
+        payloadData.comment_id || payloadData.id || event.comment_id;
+
       if (!rowId || !colId) return;
 
       const countKey = `${rowId}_${colId}`;
@@ -533,10 +556,13 @@ const App: React.FC<AppProps> = ({
         let newCount = prevCount - 1;
         if (event.total !== undefined && event.total !== null) {
           newCount = Number(event.total);
-        } else if (payloadData.total !== undefined && payloadData.total !== null) {
+        } else if (
+          payloadData.total !== undefined &&
+          payloadData.total !== null
+        ) {
           newCount = Number(payloadData.total);
         }
-        
+
         return {
           ...prev,
           [countKey]: Math.max(0, isNaN(newCount) ? prevCount - 1 : newCount),
@@ -698,7 +724,7 @@ const App: React.FC<AppProps> = ({
                 v.config = JSON.parse(v.config);
               } catch (e) {
                 try {
-                  v.config = (new Function(`return ${v.config}`))();
+                  v.config = new Function(`return ${v.config}`)();
                 } catch (ee) {
                   v.config = {};
                 }
@@ -788,7 +814,7 @@ const App: React.FC<AppProps> = ({
               v.config = JSON.parse(v.config);
             } catch (e) {
               try {
-                v.config = (new Function(`return ${v.config}`))();
+                v.config = new Function(`return ${v.config}`)();
               } catch (ee) {
                 v.config = {};
               }
@@ -831,7 +857,7 @@ const App: React.FC<AppProps> = ({
   }, [activeTableId, fetchTableDetail]);
 
   const handleOpenAddTableWithMetadata = () => {
-    setTableMetadataMode('add');
+    setTableMetadataMode("add");
     setEditingTableForMetadata(null);
     setIsTableMetadataDialogOpen(true);
   };
@@ -839,7 +865,7 @@ const App: React.FC<AppProps> = ({
   const handleOpenEditTableWithMetadata = (tableId: string) => {
     const tableToEdit = tables.find((t) => t.id === tableId);
     if (tableToEdit) {
-      setTableMetadataMode('edit');
+      setTableMetadataMode("edit");
       setEditingTableForMetadata(tableToEdit);
       setIsTableMetadataDialogOpen(true);
     }
@@ -863,7 +889,7 @@ const App: React.FC<AppProps> = ({
       if (event.success === false) return;
       const payloadData = event.data || {};
       const tableId = payloadData.table_id || event.table_id;
-      
+
       if (tableId && activeTableId && tableId === activeTableId) {
         fetchTableDetail(activeTableId);
         toast.info(`在线用户创建了新视图: ${payloadData.name || "新视图"}`);
@@ -999,7 +1025,9 @@ const App: React.FC<AppProps> = ({
 
       if (tableId && activeTableId && tableId === activeTableId) {
         fetchTableDetail(activeTableId);
-        toast.info(`在线用户转换了字段类型为: ${payloadData.new_type || "新类型"}`);
+        toast.info(
+          `在线用户转换了字段类型为: ${payloadData.new_type || "新类型"}`,
+        );
       }
     };
 
@@ -1014,7 +1042,10 @@ const App: React.FC<AppProps> = ({
     socket.on("column:deleted:broadcast", handleRemoteColumnDeleted);
     socket.on("column:batch_deleted:broadcast", handleRemoteColumnBatchDeleted);
     socket.on("column:sort_updated:broadcast", handleRemoteColumnSortUpdated);
-    socket.on("column:type_converted:broadcast", handleRemoteColumnTypeConverted);
+    socket.on(
+      "column:type_converted:broadcast",
+      handleRemoteColumnTypeConverted,
+    );
 
     return () => {
       socket.off("view:created:broadcast", handleRemoteViewCreated);
@@ -1026,9 +1057,18 @@ const App: React.FC<AppProps> = ({
       socket.off("column:created:broadcast", handleRemoteColumnCreated);
       socket.off("column:updated:broadcast", handleRemoteColumnUpdated);
       socket.off("column:deleted:broadcast", handleRemoteColumnDeleted);
-      socket.off("column:batch_deleted:broadcast", handleRemoteColumnBatchDeleted);
-      socket.off("column:sort_updated:broadcast", handleRemoteColumnSortUpdated);
-      socket.off("column:type_converted:broadcast", handleRemoteColumnTypeConverted);
+      socket.off(
+        "column:batch_deleted:broadcast",
+        handleRemoteColumnBatchDeleted,
+      );
+      socket.off(
+        "column:sort_updated:broadcast",
+        handleRemoteColumnSortUpdated,
+      );
+      socket.off(
+        "column:type_converted:broadcast",
+        handleRemoteColumnTypeConverted,
+      );
     };
   }, [socket, activeTableId, fetchTableDetail]);
 
@@ -1437,12 +1477,16 @@ const App: React.FC<AppProps> = ({
     const applyPayloadUpdate = (data: any) => {
       if (!data) return;
       if (Array.isArray(data)) {
-        data.forEach(item => applyPayloadUpdate(item));
+        data.forEach((item) => applyPayloadUpdate(item));
         return;
       }
       const cellData = data.data || data;
       if (cellData && cellData.row_id && cellData.column_id) {
-        syncUpdateCellLocalRef.current?.(cellData.row_id, cellData.column_id, cellData.value);
+        syncUpdateCellLocalRef.current?.(
+          cellData.row_id,
+          cellData.column_id,
+          cellData.value,
+        );
       }
     };
 
@@ -1517,7 +1561,10 @@ const App: React.FC<AppProps> = ({
     };
 
     const handleStatusUpdatedBroadcast = (response: any) => {
-      console.log("[Socket] Received operation:status_updated:broadcast:", response);
+      console.log(
+        "[Socket] Received operation:status_updated:broadcast:",
+        response,
+      );
       const currentTableId = activeTableIdRef.current;
       if (currentTableId) {
         socket.emit("operation:get_status", { table_id: currentTableId });
@@ -1541,13 +1588,13 @@ const App: React.FC<AppProps> = ({
     const handleRowOperationAck = (response: any) => {
       console.log("[Socket] Received row operation ack in App:", response);
       const currentTableId = activeTableIdRef.current;
-      
+
       if (response && response.success !== false && currentTableId) {
         setTimeout(() => {
           fetchRowsRef.current(1, true);
         }, 50);
       }
-      
+
       if (response && response.status) {
         setCanUndo(!!response.status.can_undo);
         setCanRedo(!!response.status.can_redo);
@@ -1557,9 +1604,12 @@ const App: React.FC<AppProps> = ({
     };
 
     const handleTableDetailOperationAck = (response: any) => {
-      console.log("[Socket] Received table detail operation ack in App:", response);
+      console.log(
+        "[Socket] Received table detail operation ack in App:",
+        response,
+      );
       const currentTableId = activeTableIdRef.current;
-      
+
       if (response && response.success !== false && currentTableId) {
         setTimeout(() => {
           fetchTableDetailRef.current(currentTableId).then(() => {
@@ -1567,7 +1617,7 @@ const App: React.FC<AppProps> = ({
           });
         }, 50);
       }
-      
+
       if (response && response.status) {
         setCanUndo(!!response.status.can_undo);
         setCanRedo(!!response.status.can_redo);
@@ -1576,13 +1626,15 @@ const App: React.FC<AppProps> = ({
       }
     };
 
-
     socket.on("operation:get_status:ack", handleStatusAck);
     socket.on("operation:undo:ack", handleUndoAck);
     socket.on("operation:redo:ack", handleRedoAck);
     socket.on("operation:undone:broadcast", handleUndoneBroadcast);
     socket.on("operation:redone:broadcast", handleRedoneBroadcast);
-    socket.on("operation:status_updated:broadcast", handleStatusUpdatedBroadcast);
+    socket.on(
+      "operation:status_updated:broadcast",
+      handleStatusUpdatedBroadcast,
+    );
     socket.on("cell:update:ack", handleCellUpdateAck);
     socket.on("row:create:ack", handleRowOperationAck);
     socket.on("row:insert_above:ack", handleRowOperationAck);
@@ -1621,7 +1673,10 @@ const App: React.FC<AppProps> = ({
       socket.off("operation:redo:ack", handleRedoAck);
       socket.off("operation:undone:broadcast", handleUndoneBroadcast);
       socket.off("operation:redone:broadcast", handleRedoneBroadcast);
-      socket.off("operation:status_updated:broadcast", handleStatusUpdatedBroadcast);
+      socket.off(
+        "operation:status_updated:broadcast",
+        handleStatusUpdatedBroadcast,
+      );
       socket.off("cell:update:ack", handleCellUpdateAck);
       socket.off("row:create:ack", handleRowOperationAck);
       socket.off("row:insert_above:ack", handleRowOperationAck);
@@ -1991,7 +2046,10 @@ const App: React.FC<AppProps> = ({
           if (response && response.success) {
             await fetchTableDetail(activeTable.id);
           } else {
-            console.warn("Socket view:move failed, retrying via API...", response);
+            console.warn(
+              "Socket view:move failed, retrying via API...",
+              response,
+            );
             try {
               await api.moveView(activeTable.id, draggedViewId, targetIndex);
               await fetchTableDetail(activeTable.id);
@@ -2041,7 +2099,7 @@ const App: React.FC<AppProps> = ({
           if (response && response.success) {
             const returnedView = response.data || {};
             const newViewId = returnedView.view_id || returnedView.id;
-            
+
             await fetchTableDetail(activeTableId);
             if (newViewId) {
               setActiveViewId(newViewId);
@@ -2049,7 +2107,10 @@ const App: React.FC<AppProps> = ({
             setIsViewDialogOpen(false);
             toast.success("创建视图成功");
           } else {
-            console.warn("Socket view:create failed, retrying via API...", response);
+            console.warn(
+              "Socket view:create failed, retrying via API...",
+              response,
+            );
             // Fallback immediately to API if socket ack mentions failure
             try {
               const res = await api.createView(activeTableId, payload);
@@ -2091,7 +2152,10 @@ const App: React.FC<AppProps> = ({
             await fetchTableDetail(activeTableId);
             toast.success("重命名视图成功");
           } else {
-            console.warn("Socket view:rename failed, retrying via API...", response);
+            console.warn(
+              "Socket view:rename failed, retrying via API...",
+              response,
+            );
             try {
               await api.renameView(activeTableId, viewId, newName);
               await fetchTableDetail(activeTableId);
@@ -2136,7 +2200,10 @@ const App: React.FC<AppProps> = ({
                 await fetchTableDetail(activeTable.id);
                 toast.success("删除视图成功");
               } else {
-                console.warn("Socket view:delete failed, retrying via API...", response);
+                console.warn(
+                  "Socket view:delete failed, retrying via API...",
+                  response,
+                );
                 try {
                   await api.deleteView(activeTable.id, viewId);
                   await fetchTableDetail(activeTable.id);
@@ -2182,7 +2249,10 @@ const App: React.FC<AppProps> = ({
             setViewContextMenu(null);
             toast.success("复制视图成功");
           } else {
-            console.warn("Socket view:copy failed, retrying via API...", response);
+            console.warn(
+              "Socket view:copy failed, retrying via API...",
+              response,
+            );
             try {
               const res = await api.copyView(activeTableId, viewId);
               await fetchTableDetail(activeTableId);
@@ -2226,7 +2296,7 @@ const App: React.FC<AppProps> = ({
   const updateViewWithSync = async (
     tableId: string,
     viewId: string,
-    payload: { config?: any; is_default?: boolean }
+    payload: { config?: any; is_default?: boolean },
   ) => {
     try {
       if (socket && socket.connected) {
@@ -2234,7 +2304,10 @@ const App: React.FC<AppProps> = ({
           if (response && response.success) {
             await fetchTableDetail(tableId);
           } else {
-            console.warn("Socket view:update failed, retrying via API...", response);
+            console.warn(
+              "Socket view:update failed, retrying via API...",
+              response,
+            );
             try {
               await api.updateView(tableId, viewId, payload);
               await fetchTableDetail(tableId);
@@ -2261,7 +2334,7 @@ const App: React.FC<AppProps> = ({
   const updateColumnWithSync = async (
     tableId: string,
     columnId: string,
-    updatedCol: Column
+    updatedCol: Column,
   ) => {
     try {
       if (socket && socket.connected) {
@@ -2278,11 +2351,18 @@ const App: React.FC<AppProps> = ({
                 column_id: columnId,
               },
               action: "update",
-              total: response.total || response.data?.total || activeTable?.columns.length || 0
+              total:
+                response.total ||
+                response.data?.total ||
+                activeTable?.columns.length ||
+                0,
             });
             await fetchTableDetail(tableId);
           } else {
-            console.warn("Socket column:update failed, retrying via API...", response);
+            console.warn(
+              "Socket column:update failed, retrying via API...",
+              response,
+            );
             try {
               await api.updateColumn(tableId, columnId, updatedCol);
               await fetchTableDetail(tableId);
@@ -2300,7 +2380,7 @@ const App: React.FC<AppProps> = ({
           width: updatedCol.width || 150,
           sort: updatedCol.sort,
           config: updatedCol.config || {},
-          search_reference: (updatedCol as any).search_reference || false
+          search_reference: (updatedCol as any).search_reference || false,
         });
       } else {
         await api.updateColumn(tableId, columnId, updatedCol);
@@ -2317,10 +2397,7 @@ const App: React.FC<AppProps> = ({
     }
   };
 
-  const deleteColumnWithSync = async (
-    tableId: string,
-    columnId: string
-  ) => {
+  const deleteColumnWithSync = async (tableId: string, columnId: string) => {
     try {
       if (socket && socket.connected) {
         return new Promise<boolean>((resolve, reject) => {
@@ -2340,12 +2417,20 @@ const App: React.FC<AppProps> = ({
                   column_id: columnId,
                 },
                 action: "delete",
-                total: response.total !== undefined ? response.total : (response.data?.total || (activeTable?.columns.length ? activeTable.columns.length - 1 : 0))
+                total:
+                  response.total !== undefined
+                    ? response.total
+                    : response.data?.total ||
+                      (activeTable?.columns.length
+                        ? activeTable.columns.length - 1
+                        : 0),
               });
               await fetchTableDetail(tableId);
               resolve(true);
             } else {
-              reject(new Error(response?.message || "通过 Socket 删除字段失败"));
+              reject(
+                new Error(response?.message || "通过 Socket 删除字段失败"),
+              );
             }
           };
 
@@ -2358,7 +2443,7 @@ const App: React.FC<AppProps> = ({
 
           socket.emit("column:delete", {
             table_id: tableId,
-            column_id: columnId
+            column_id: columnId,
           });
         });
       } else {
@@ -2381,7 +2466,7 @@ const App: React.FC<AppProps> = ({
 
   const batchDeleteColumnsWithSync = async (
     tableId: string,
-    columnIds: string[]
+    columnIds: string[],
   ) => {
     try {
       if (socket && socket.connected) {
@@ -2402,12 +2487,20 @@ const App: React.FC<AppProps> = ({
                   column_ids: columnIds,
                 },
                 action: "batch_delete",
-                total: response.total !== undefined ? response.total : (response.data?.total || (activeTable?.columns.length ? activeTable.columns.length - columnIds.length : 0))
+                total:
+                  response.total !== undefined
+                    ? response.total
+                    : response.data?.total ||
+                      (activeTable?.columns.length
+                        ? activeTable.columns.length - columnIds.length
+                        : 0),
               });
               await fetchTableDetail(tableId);
               resolve(true);
             } else {
-              reject(new Error(response?.message || "通过 Socket 批量删除字段失败"));
+              reject(
+                new Error(response?.message || "通过 Socket 批量删除字段失败"),
+              );
             }
           };
 
@@ -2420,7 +2513,7 @@ const App: React.FC<AppProps> = ({
 
           socket.emit("column:batch_delete", {
             table_id: tableId,
-            column_ids: columnIds
+            column_ids: columnIds,
           });
         });
       } else {
@@ -2443,7 +2536,7 @@ const App: React.FC<AppProps> = ({
 
   const updateColumnSortWithSync = async (
     tableId: string,
-    sortData: { id: string; sort: number }[]
+    sortData: { id: string; sort: number }[],
   ) => {
     try {
       if (socket && socket.connected) {
@@ -2464,12 +2557,17 @@ const App: React.FC<AppProps> = ({
                   column_sort: response.data?.column_sort || sortData,
                 },
                 action: "update_sort",
-                total: response.total !== undefined ? response.total : (response.data?.total || sortData.length)
+                total:
+                  response.total !== undefined
+                    ? response.total
+                    : response.data?.total || sortData.length,
               });
               await fetchTableDetail(tableId);
               resolve(true);
             } else {
-              reject(new Error(response?.message || "通过 Socket 调换字段顺序失败"));
+              reject(
+                new Error(response?.message || "通过 Socket 调换字段顺序失败"),
+              );
             }
           };
 
@@ -2482,7 +2580,7 @@ const App: React.FC<AppProps> = ({
 
           socket.emit("column:update_sort", {
             table_id: tableId,
-            sort_data: sortData
+            sort_data: sortData,
           });
         });
       } else {
@@ -2506,7 +2604,7 @@ const App: React.FC<AppProps> = ({
   const convertColumnTypeWithSync = async (
     tableId: string,
     columnId: string,
-    newType: string
+    newType: string,
   ) => {
     try {
       if (socket && socket.connected) {
@@ -2527,12 +2625,17 @@ const App: React.FC<AppProps> = ({
                   new_type: newType,
                 },
                 action: "convert_type",
-                total: response.total !== undefined ? response.total : (response.data?.total || activeTable?.rows?.length || 0)
+                total:
+                  response.total !== undefined
+                    ? response.total
+                    : response.data?.total || activeTable?.rows?.length || 0,
               });
               await fetchTableDetail(tableId);
               resolve(true);
             } else {
-              reject(new Error(response?.message || "通过 Socket 转换字段类型失败"));
+              reject(
+                new Error(response?.message || "通过 Socket 转换字段类型失败"),
+              );
             }
           };
 
@@ -2546,7 +2649,7 @@ const App: React.FC<AppProps> = ({
           socket.emit("column:convert_type", {
             table_id: tableId,
             column_id: columnId,
-            new_type: newType
+            new_type: newType,
           });
         });
       } else {
@@ -2626,12 +2729,15 @@ const App: React.FC<AppProps> = ({
 
     try {
       // If we are updating filters, check if any of the new filters are incomplete.
-      // If any incomplete filters are present (e.g. while adding a new filter, selecting, or typing), 
+      // If any incomplete filters are present (e.g. while adding a new filter, selecting, or typing),
       // do NOT trigger view:update socket & HTTP request on backend.
       // This keeps the UI responsive & local state synchronized without sending half-empty queries to the server.
       if (updates.filters) {
         const totalFiltersCount = updates.filters.length;
-        const validFiltersCount = getValidFilters(updates.filters, activeTable?.columns).length;
+        const validFiltersCount = getValidFilters(
+          updates.filters,
+          activeTable?.columns,
+        ).length;
         if (totalFiltersCount > 0 && validFiltersCount !== totalFiltersCount) {
           // There is an incomplete filter in the current draft list. Only trigger local update, avoid remote sync.
           return;
@@ -2647,7 +2753,7 @@ const App: React.FC<AppProps> = ({
         );
       }
 
-    if (isTableReadonly) {
+      if (isTableReadonly) {
         // Only apply in local state, do not push to server
         return;
       }
@@ -2669,7 +2775,12 @@ const App: React.FC<AppProps> = ({
     setIsFieldDialogOpen(true);
   };
 
-  const handleSaveColumn = async (col: Column, isVisible: boolean) => {
+  const handleSaveColumn = async (
+    col: Column,
+    isVisible: boolean,
+    optionRenames?: Record<string, string>,
+    deletedOptions?: string[],
+  ) => {
     if (
       !activeTableId ||
       !activeView ||
@@ -2688,55 +2799,145 @@ const App: React.FC<AppProps> = ({
           await convertColumnTypeWithSync(activeTableId, col.id, col.type);
         }
         await updateColumnWithSync(activeTableId, col.id, col);
+
+        // Update rows if options were modified
+        if (
+          [FieldType.SELECT, FieldType.MULTI_SELECT].includes(
+            col.type as FieldType,
+          )
+        ) {
+          if (
+            (optionRenames && Object.keys(optionRenames).length > 0) ||
+            (deletedOptions && deletedOptions.length > 0)
+          ) {
+            const rowsToUpdate = rows.filter((row) => {
+              const val = row.data[col.id];
+              if (!val) return false;
+              if (col.type === FieldType.SELECT) {
+                return (
+                  (optionRenames && optionRenames[val]) ||
+                  (deletedOptions && deletedOptions.includes(val))
+                );
+              } else if (col.type === FieldType.MULTI_SELECT) {
+                if (Array.isArray(val)) {
+                  return val.some(
+                    (v: string) =>
+                      (optionRenames && optionRenames[v]) ||
+                      (deletedOptions && deletedOptions.includes(v)),
+                  );
+                }
+              }
+              return false;
+            });
+
+            if (rowsToUpdate.length > 0) {
+              const newRows = [...rows];
+              const updatePromises = [];
+              for (const row of rowsToUpdate) {
+                const val = row.data[col.id];
+                let newVal = val;
+                if (col.type === FieldType.SELECT) {
+                  if (deletedOptions && deletedOptions.includes(val)) {
+                    newVal = null;
+                  } else if (optionRenames && optionRenames[val]) {
+                    newVal = optionRenames[val];
+                  }
+                } else if (col.type === FieldType.MULTI_SELECT) {
+                  if (Array.isArray(val)) {
+                    newVal = val
+                      .map((v: string) => {
+                        if (deletedOptions && deletedOptions.includes(v))
+                          return null;
+                        if (optionRenames && optionRenames[v])
+                          return optionRenames[v];
+                        return v;
+                      })
+                      .filter(Boolean);
+                  }
+                }
+
+                const rowIndex = newRows.findIndex((r) => r.id === row.id);
+                if (rowIndex !== -1) {
+                  newRows[rowIndex] = {
+                    ...newRows[rowIndex],
+                    data: { ...newRows[rowIndex].data, [col.id]: newVal },
+                  };
+                }
+
+                updatePromises.push(
+                  api
+                    .updateRow(activeTableId, row.id, {
+                      data: { [col.id]: newVal },
+                    })
+                    .catch((e) =>
+                      console.error("Failed to update row option change", e),
+                    ),
+                );
+              }
+              setRows(newRows);
+              Promise.all(updatePromises).then(() => {
+                // Trigger a re-fetch to ensure consistency if needed, but local state should be fine
+              });
+            }
+          }
+        }
       } else {
         const nextSort = activeTable ? activeTable.columns.length : 0;
         const colWithSort = { ...col, sort: nextSort };
 
         if (socket && socket.connected) {
-          const resultPromise = new Promise<{ id: string }>((resolve, reject) => {
-            let timeoutId: any;
+          const resultPromise = new Promise<{ id: string }>(
+            (resolve, reject) => {
+              let timeoutId: any;
 
-            const handleAck = (response: any) => {
-              if (timeoutId) clearTimeout(timeoutId);
-              if (response && response.success) {
-                const columnId = response.data?.column_id || response.data?.id;
-                
-                // Broadcast column created event to all other clients in the table room
-                const targetRoom = socketManager.getJoinedRoom(activeTableId);
-                socket.emit("column:created:broadcast", {
-                  room: targetRoom,
-                  success: true,
-                  data: {
-                    ...(response.data || {}),
-                    table_id: activeTableId,
-                    column_id: columnId,
-                  },
-                  action: "create",
-                  total: response.total || response.data?.total || (activeTable.columns.length + 1)
-                });
-                
-                resolve({ id: columnId });
-              } else {
-                reject(new Error(response?.message || "通过 Socket 创建字段失败"));
-              }
-            };
+              const handleAck = (response: any) => {
+                if (timeoutId) clearTimeout(timeoutId);
+                if (response && response.success) {
+                  const columnId =
+                    response.data?.column_id || response.data?.id;
 
-            timeoutId = setTimeout(() => {
-              socket.off("column:create:ack", handleAck);
-              reject(new Error("创建字段 Socket 响应超时"));
-            }, 5000);
+                  // Broadcast column created event to all other clients in the table room
+                  const targetRoom = socketManager.getJoinedRoom(activeTableId);
+                  socket.emit("column:created:broadcast", {
+                    room: targetRoom,
+                    success: true,
+                    data: {
+                      ...(response.data || {}),
+                      table_id: activeTableId,
+                      column_id: columnId,
+                    },
+                    action: "create",
+                    total:
+                      response.total ||
+                      response.data?.total ||
+                      activeTable.columns.length + 1,
+                  });
 
-            socket.once("column:create:ack", handleAck);
+                  resolve({ id: columnId });
+                } else {
+                  reject(
+                    new Error(response?.message || "通过 Socket 创建字段失败"),
+                  );
+                }
+              };
 
-            socket.emit("column:create", {
-              table_id: activeTableId,
-              name: colWithSort.name,
-              type: colWithSort.type,
-              width: colWithSort.width || 150,
-              sort: colWithSort.sort,
-              config: colWithSort.config || {}
-            });
-          });
+              timeoutId = setTimeout(() => {
+                socket.off("column:create:ack", handleAck);
+                reject(new Error("创建字段 Socket 响应超时"));
+              }, 5000);
+
+              socket.once("column:create:ack", handleAck);
+
+              socket.emit("column:create", {
+                table_id: activeTableId,
+                name: colWithSort.name,
+                type: colWithSort.type,
+                width: colWithSort.width || 150,
+                sort: colWithSort.sort,
+                config: colWithSort.config || {},
+              });
+            },
+          );
 
           const result = await resultPromise;
           savedColId = result.id;
@@ -2947,7 +3148,7 @@ const App: React.FC<AppProps> = ({
   const sanitizeUserValue = (val: any) => {
     if (Array.isArray(val)) {
       return val.map((v: any) =>
-        typeof v === "object" && v !== null ? (v.id || String(v)) : String(v),
+        typeof v === "object" && v !== null ? v.id || String(v) : String(v),
       );
     } else if (typeof val === "object" && val !== null) {
       return [val.id || String(val)];
@@ -3029,12 +3230,14 @@ const App: React.FC<AppProps> = ({
       if (def === "current_date" || def === "current_datetime") {
         const d = new Date();
         const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const isDateTime = col.config?.format?.includes('HH:mm') || col.format?.includes('HH:mm');
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        const isDateTime =
+          col.config?.format?.includes("HH:mm") ||
+          col.format?.includes("HH:mm");
         if (isDateTime) {
-          const hours = String(d.getHours()).padStart(2, '0');
-          const minutes = String(d.getMinutes()).padStart(2, '0');
+          const hours = String(d.getHours()).padStart(2, "0");
+          const minutes = String(d.getMinutes()).padStart(2, "0");
           return `${year}-${month}-${day}T${hours}:${minutes}`;
         } else {
           return `${year}-${month}-${day}`;
@@ -3043,11 +3246,12 @@ const App: React.FC<AppProps> = ({
     } else if (col.type === FieldType.TIME) {
       if (def === "current_time") {
         const d = new Date();
-        const hours = String(d.getHours()).padStart(2, '0');
-        const minutes = String(d.getMinutes()).padStart(2, '0');
-        const hasSeconds = col.config?.format?.includes('ss') || col.format?.includes('ss');
+        const hours = String(d.getHours()).padStart(2, "0");
+        const minutes = String(d.getMinutes()).padStart(2, "0");
+        const hasSeconds =
+          col.config?.format?.includes("ss") || col.format?.includes("ss");
         if (hasSeconds) {
-          const seconds = String(d.getSeconds()).padStart(2, '0');
+          const seconds = String(d.getSeconds()).padStart(2, "0");
           return `${hours}:${minutes}:${seconds}`;
         }
         return `${hours}:${minutes}`;
@@ -3369,9 +3573,10 @@ const App: React.FC<AppProps> = ({
   };
 
   const handleDuplicateRows = async (rowIds: string[]) => {
-    if (!activeTableId || !activeTable || activeTable.id !== activeTableId) return;
+    if (!activeTableId || !activeTable || activeTable.id !== activeTableId)
+      return;
     if (!rowIds || rowIds.length === 0) return;
-    
+
     try {
       if (isConnected) {
         syncBatchDuplicateRows(rowIds, () => {
@@ -3438,7 +3643,7 @@ const App: React.FC<AppProps> = ({
           syncDeleteRow(rowIds[0]);
         } else {
           // Send individual delete events for each row to ensure compatibility
-          rowIds.forEach(id => syncDeleteRow(id));
+          rowIds.forEach((id) => syncDeleteRow(id));
         }
         fetchUndoRedoStatus();
         toast.success(rowIds.length === 1 ? "删除成功" : "批量删除成功");
@@ -3847,7 +4052,10 @@ const App: React.FC<AppProps> = ({
               let newCount = prevCount + 1;
               if (response.total !== undefined && response.total !== null) {
                 newCount = Number(response.total);
-              } else if (response.data?.total !== undefined && response.data?.total !== null) {
+              } else if (
+                response.data?.total !== undefined &&
+                response.data?.total !== null
+              ) {
                 newCount = Number(response.data.total);
               }
               return {
@@ -3937,12 +4145,18 @@ const App: React.FC<AppProps> = ({
               let newCount = prevCount - 1;
               if (response.total !== undefined && response.total !== null) {
                 newCount = Number(response.total);
-              } else if (response.data?.total !== undefined && response.data?.total !== null) {
+              } else if (
+                response.data?.total !== undefined &&
+                response.data?.total !== null
+              ) {
                 newCount = Number(response.data.total);
               }
               return {
                 ...prev,
-                [countKey]: Math.max(0, isNaN(newCount) ? prevCount - 1 : newCount),
+                [countKey]: Math.max(
+                  0,
+                  isNaN(newCount) ? prevCount - 1 : newCount,
+                ),
               };
             });
 
@@ -4190,40 +4404,42 @@ const App: React.FC<AppProps> = ({
                 icon={<ICONS.Settings />}
                 label="字段配置"
                 isActive={openMenu === "FIELD"}
-                onClick={() => setOpenMenu(openMenu === "FIELD" ? null : "FIELD")}
-              />
-            {openMenu === "FIELD" && (
-              <FieldMenu
-                columns={activeTable.columns}
-                visibleColumnIds={activeView.config?.visibleColumns}
-                onClose={closeMenus}
-                onEditColumn={(col, pos) => {
-                  setEditingColumn(col);
-                  setFieldConfigAnchor(pos || null);
-                  setIsFieldDialogOpen(true);
-                }}
-                onAddColumn={(pos) => {
-                  setEditingColumn(null);
-                  setFieldConfigAnchor(pos || null);
-                  setIsFieldDialogOpen(true);
-                }}
-                onToggleVisibility={handleToggleColumnVisibility}
-                onShowAll={() =>
-                  updateViewConfig({
-                    visibleColumns: activeTable.columns.map((c) => c.id),
-                  })
+                onClick={() =>
+                  setOpenMenu(openMenu === "FIELD" ? null : "FIELD")
                 }
-                onHideAll={() =>
-                  updateViewConfig({
-                    visibleColumns: [activeTable.columns[0].id],
-                  })
-                }
-                onDeleteColumn={handleDeleteColumn}
-                onDeleteColumns={handleDeleteColumns}
-                onSort={handleColumnSort}
               />
-            )}
-          </div>
+              {openMenu === "FIELD" && (
+                <FieldMenu
+                  columns={activeTable.columns}
+                  visibleColumnIds={activeView.config?.visibleColumns}
+                  onClose={closeMenus}
+                  onEditColumn={(col, pos) => {
+                    setEditingColumn(col);
+                    setFieldConfigAnchor(pos || null);
+                    setIsFieldDialogOpen(true);
+                  }}
+                  onAddColumn={(pos) => {
+                    setEditingColumn(null);
+                    setFieldConfigAnchor(pos || null);
+                    setIsFieldDialogOpen(true);
+                  }}
+                  onToggleVisibility={handleToggleColumnVisibility}
+                  onShowAll={() =>
+                    updateViewConfig({
+                      visibleColumns: activeTable.columns.map((c) => c.id),
+                    })
+                  }
+                  onHideAll={() =>
+                    updateViewConfig({
+                      visibleColumns: [activeTable.columns[0].id],
+                    })
+                  }
+                  onDeleteColumn={handleDeleteColumn}
+                  onDeleteColumns={handleDeleteColumns}
+                  onSort={handleColumnSort}
+                />
+              )}
+            </div>
           )}
           <div className="relative">
             <ToolbarButton
@@ -4400,40 +4616,40 @@ const App: React.FC<AppProps> = ({
               isActive={openMenu === "FIELD"}
               onClick={() => setOpenMenu(openMenu === "FIELD" ? null : "FIELD")}
             />
-          {openMenu === "FIELD" && (
-            <ClickOutsideWrapper onClickOutside={closeMenus}>
-              <FieldMenu
-                columns={activeTable.columns}
-                visibleColumnIds={activeView.config?.visibleColumns}
-                onClose={closeMenus}
-                onEditColumn={(col, pos) => {
-                  setEditingColumn(col);
-                  setFieldConfigAnchor(pos || null);
-                  setIsFieldDialogOpen(true);
-                }}
-                onAddColumn={(pos) => {
-                  setEditingColumn(null);
-                  setFieldConfigAnchor(pos || null);
-                  setIsFieldDialogOpen(true);
-                }}
-                onToggleVisibility={handleToggleColumnVisibility}
-                onShowAll={() =>
-                  updateViewConfig({
-                    visibleColumns: activeTable.columns.map((c) => c.id),
-                  })
-                }
-                onHideAll={() =>
-                  updateViewConfig({
-                    visibleColumns: [activeTable.columns[0].id],
-                  })
-                }
-                onDeleteColumn={handleDeleteColumn}
-                onDeleteColumns={handleDeleteColumns}
-                onSort={handleColumnSort}
-              />
-            </ClickOutsideWrapper>
-          )}
-        </div>
+            {openMenu === "FIELD" && (
+              <ClickOutsideWrapper onClickOutside={closeMenus}>
+                <FieldMenu
+                  columns={activeTable.columns}
+                  visibleColumnIds={activeView.config?.visibleColumns}
+                  onClose={closeMenus}
+                  onEditColumn={(col, pos) => {
+                    setEditingColumn(col);
+                    setFieldConfigAnchor(pos || null);
+                    setIsFieldDialogOpen(true);
+                  }}
+                  onAddColumn={(pos) => {
+                    setEditingColumn(null);
+                    setFieldConfigAnchor(pos || null);
+                    setIsFieldDialogOpen(true);
+                  }}
+                  onToggleVisibility={handleToggleColumnVisibility}
+                  onShowAll={() =>
+                    updateViewConfig({
+                      visibleColumns: activeTable.columns.map((c) => c.id),
+                    })
+                  }
+                  onHideAll={() =>
+                    updateViewConfig({
+                      visibleColumns: [activeTable.columns[0].id],
+                    })
+                  }
+                  onDeleteColumn={handleDeleteColumn}
+                  onDeleteColumns={handleDeleteColumns}
+                  onSort={handleColumnSort}
+                />
+              </ClickOutsideWrapper>
+            )}
+          </div>
         )}
         {filterButton}
         <div className="relative">
@@ -4504,16 +4720,21 @@ const App: React.FC<AppProps> = ({
 
   // --- Main Render ---
   const searchParams = new URLSearchParams(window.location.search);
-  const publicShareCode = searchParams.get('share_code');
-  const isPublicCollectionForm = window.location.pathname.includes('/collectionform') || !!publicShareCode;
+  const publicShareCode = searchParams.get("share_code");
+  const isPublicCollectionForm =
+    window.location.pathname.includes("/collectionform") || !!publicShareCode;
 
   if (isPublicCollectionForm) {
     if (!publicShareCode) {
       return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 max-w-md w-full text-center">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">未提供分享码</h2>
-            <p className="text-gray-500 text-sm">请核对格式，带上正确的 ?share_code=xxx 参数。</p>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">
+              未提供分享码
+            </h2>
+            <p className="text-gray-500 text-sm">
+              请核对格式，带上正确的 ?share_code=xxx 参数。
+            </p>
           </div>
         </div>
       );
@@ -4527,7 +4748,9 @@ const App: React.FC<AppProps> = ({
 
   return (
     <>
-      <div className={`flex flex-col ${fullScreen ? "h-[calc(100vh-100px)]" : "h-full min-h-[500px]"} w-full overflow-hidden bg-white text-sm relative`}>
+      <div
+        className={`flex flex-col ${fullScreen ? "h-[calc(100vh-100px)]" : "h-full min-h-[500px]"} w-full overflow-hidden bg-white text-sm relative`}
+      >
         {/* Global Header */}
         {!hideHeader && (
           <header className="h-[64px] bg-white border-b border-gray-200 px-7 flex items-center justify-between  sticky top-0 shadow-sm shrink-0">
@@ -4596,14 +4819,19 @@ const App: React.FC<AppProps> = ({
             </>
           )}
 
-          <div ref={searchContainerRef} className="flex-1 flex flex-col h-full overflow-hidden relative">
+          <div
+            ref={searchContainerRef}
+            className="flex-1 flex flex-col h-full overflow-hidden relative"
+          >
             {activeTable && activeView && activeView.type === ViewType.FORM && (
               <FormViewBuilder
                 table={activeTable}
                 viewConfig={activeView.config}
                 onUpdateConfig={updateViewConfig}
                 onBack={() => {
-                  const firstNonFormView = activeTable.views?.find(v => v.type !== ViewType.FORM);
+                  const firstNonFormView = activeTable.views?.find(
+                    (v) => v.type !== ViewType.FORM,
+                  );
                   if (firstNonFormView) {
                     setActiveViewId(firstNonFormView.id);
                   }
@@ -4630,7 +4858,9 @@ const App: React.FC<AppProps> = ({
                       </span>
                       {activeTable.can_manage !== false && (
                         <button
-                          onClick={() => handleOpenEditTableWithMetadata(activeTable.id)}
+                          onClick={() =>
+                            handleOpenEditTableWithMetadata(activeTable.id)
+                          }
                           className="opacity-0 group-hover/tablename:opacity-100 p-0.5 text-gray-400 hover:text-primary-600 rounded hover:bg-gray-200 transition-all"
                           title="自定义属性"
                         >
@@ -4722,219 +4952,314 @@ const App: React.FC<AppProps> = ({
                 {!isTableReadonly && (
                   <div className="flex items-center gap-2 px-2 shrink-0 relative">
                     <div
-                    onClick={() => setIsOnlineUsersOpen(!isOnlineUsersOpen)}
-                    className="flex items-center gap-1.5 cursor-pointer hover:bg-gray-200/60 p-1 rounded-lg transition-all"
-                    title="点击查看在线成员详情"
-                  >
-                    <div className="flex items-center gap-1.5 hidden sm:flex">
-                      <span className={`relative flex h-2.5 w-2.5`}>
-                        {isConnected && (
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        )}
-                        <span
-                          className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isConnected ? "bg-green-500" : "bg-amber-500"}`}
-                        ></span>
-                      </span>
-                      <span className="text-xs font-semibold text-gray-500">
-                        {isConnected
-                          ? `在线 (${displayedUsers.length})`
-                          : "未连接团队"}
-                      </span>
-                    </div>
-
-                    {/* Overlapping User Avatars */}
-                    {displayedUsers.length > 0 && (
-                      <div className="flex -space-x-2 overflow-hidden ml-1">
-                        {displayedUsers.map((u, idx) => {
-                          const displayName =
-                            u.real_name || u.name || "Co-worker";
-                          const initial = displayName.charAt(0).toUpperCase();
-
-                          const colors = [
-                            "#EF4444",
-                            "#F97316",
-                            "#F59E0B",
-                            "#10B981",
-                            "#06B6D4",
-                            "#3B82F6",
-                            "#6366F1",
-                            "#8B5CF6",
-                            "#EC4899",
-                            "#14B8A6",
-                          ];
-                          let hash = 0;
-                          for (let i = 0; i < displayName.length; i++) {
-                            hash =
-                              displayName.charCodeAt(i) + ((hash << 5) - hash);
-                          }
-                          const colorIndex = Math.abs(hash) % colors.length;
-                          const avatarColor = colors[colorIndex];
-                          const itemAvatar = u.avatar_url || u.avatar;
-
-                          return (
-                            <div
-                              key={u.sid || idx}
-                              className="relative cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveOnlineSid(u.sid || null);
-                                setIsOnlineUsersOpen(true);
-                              }}
-                            >
-                              <div
-                                className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white border-2 border-white shadow-sm hover:scale-110 transition-transform overflow-hidden"
-                                style={{ backgroundColor: avatarColor }}
-                              >
-                                {itemAvatar ? (
-                                  <img src={itemAvatar} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
-                                ) : (
-                                  initial
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
+                      onClick={() => setIsOnlineUsersOpen(!isOnlineUsersOpen)}
+                      className="flex items-center gap-1.5 cursor-pointer hover:bg-gray-200/60 p-1 rounded-lg transition-all"
+                      title="点击查看在线成员详情"
+                    >
+                      <div className="flex items-center gap-1.5 hidden sm:flex">
+                        <span className={`relative flex h-2.5 w-2.5`}>
+                          {isConnected && (
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          )}
+                          <span
+                            className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isConnected ? "bg-green-500" : "bg-amber-500"}`}
+                          ></span>
+                        </span>
+                        <span className="text-xs font-semibold text-gray-500">
+                          {isConnected
+                            ? `在线 (${displayedUsers.length})`
+                            : "未连接团队"}
+                        </span>
                       </div>
-                    )}
-                  </div>
 
-                  {/* Online Users Detail Popover */}
-                  {isOnlineUsersOpen && (() => {
-                    const activeUser = displayedUsers.find(u => u.sid === activeOnlineSid) || displayedUsers[0];
-                    if (!activeUser) return null;
+                      {/* Overlapping User Avatars */}
+                      {displayedUsers.length > 0 && (
+                        <div className="flex -space-x-2 overflow-hidden ml-1">
+                          {displayedUsers.map((u, idx) => {
+                            const displayName =
+                              u.real_name || u.name || "Co-worker";
+                            const initial = displayName.charAt(0).toUpperCase();
 
-                    const activeUserDisplayName = activeUser.real_name || activeUser.name || "Co-worker";
-                    const activeUserInitial = activeUserDisplayName.charAt(0).toUpperCase();
-                    
-                    const activeColors = [
-                      "#EF4444", "#F97316", "#F59E0B", "#10B981", "#06B6D4",
-                      "#3B82F6", "#6366F1", "#8B5CF6", "#EC4899", "#14B8A6"
-                    ];
-                    let activeHash = 0;
-                    for (let i = 0; i < activeUserDisplayName.length; i++) {
-                      activeHash = activeUserDisplayName.charCodeAt(i) + ((activeHash << 5) - activeHash);
-                    }
-                    const activeColorIndex = Math.abs(activeHash) % activeColors.length;
-                    const activeAvatarColor = activeColors[activeColorIndex];
+                            const colors = [
+                              "#EF4444",
+                              "#F97316",
+                              "#F59E0B",
+                              "#10B981",
+                              "#06B6D4",
+                              "#3B82F6",
+                              "#6366F1",
+                              "#8B5CF6",
+                              "#EC4899",
+                              "#14B8A6",
+                            ];
+                            let hash = 0;
+                            for (let i = 0; i < displayName.length; i++) {
+                              hash =
+                                displayName.charCodeAt(i) +
+                                ((hash << 5) - hash);
+                            }
+                            const colorIndex = Math.abs(hash) % colors.length;
+                            const avatarColor = colors[colorIndex];
+                            const itemAvatar = u.avatar_url || u.avatar;
 
-                    const handleCopy = (text: string, fieldName: string) => {
-                      navigator.clipboard.writeText(text);
-                      setCopiedField(fieldName);
-                      setTimeout(() => setCopiedField(null), 1500);
-                    };
-
-                    return (
-                      <div className="absolute right-2 top-11 z-[300] w-[360px]">
-                        <ClickOutsideWrapper onClickOutside={() => setIsOnlineUsersOpen(false)}>
-                          <div className="bg-white border border-gray-100 shadow-2xl rounded-xl p-4 flex flex-col gap-3 min-w-[320px] animate-in fade-in slide-in-from-top-2 duration-150">
-                            {/* Banner Header */}
-                            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                              <div className="flex items-center gap-2">
-                                <span className="relative flex h-2 w-2">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                                </span>
-                                <span className="text-sm font-bold text-gray-800">在线参与人员</span>
-                              </div>
-                              <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                                {displayedUsers.length} 人在线
-                              </span>
-                            </div>
-
-                            {/* User Tab Switchers (切换标签栏) */}
-                            <div className="flex gap-1.5 overflow-x-auto pb-2 border-b border-gray-100/80 no-scrollbar">
-                              {displayedUsers.map((u, idx) => {
-                                const displayName = u.real_name || u.name || "Co-worker";
-                                const initial = displayName.charAt(0).toUpperCase();
-
-                                let hash = 0;
-                                for (let i = 0; i < displayName.length; i++) {
-                                  hash = displayName.charCodeAt(i) + ((hash << 5) - hash);
-                                }
-                                const colorIndex = Math.abs(hash) % activeColors.length;
-                                const avatarColor = activeColors[colorIndex];
-                                const isSelected = activeUser.sid === u.sid;
-
-                                return (
-                                  <button
-                                    key={u.sid || idx}
-                                    onClick={() => setActiveOnlineSid(u.sid || null)}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold whitespace-nowrap transition-all select-none shrink-0 ${
-                                      isSelected 
-                                        ? "border-primary-500 bg-primary-50 text-primary-700 shadow-sm animate-pulse-fast" 
-                                        : "border-gray-100 bg-gray-50/50 hover:bg-gray-100/80 text-gray-600"
-                                    }`}
-                                  >
-                                    <div 
-                                      className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 overflow-hidden"
-                                      style={{ backgroundColor: avatarColor }}
-                                    >
-                                      {u.avatar_url || u.avatar ? (
-                                        <img src={u.avatar_url || u.avatar} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
-                                      ) : (
-                                        initial
-                                      )}
-                                    </div>
-                                    <span>{displayName}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-
-                            {/* Selected User Details Profile View */}
-                            <div className="flex flex-col gap-3.5 pt-1">
-                              {/* Avatar and Info Header Card */}
-                              <div className="flex items-center gap-3 bg-gray-50/50 border border-gray-100/75 p-3 rounded-xl">
-                                <div 
-                                  className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-sm animate-in fade-in duration-300 overflow-hidden"
-                                  style={{ backgroundColor: activeAvatarColor }}
+                            return (
+                              <div
+                                key={u.sid || idx}
+                                className="relative cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveOnlineSid(u.sid || null);
+                                  setIsOnlineUsersOpen(true);
+                                }}
+                              >
+                                <div
+                                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white border-2 border-white shadow-sm hover:scale-110 transition-transform overflow-hidden"
+                                  style={{ backgroundColor: avatarColor }}
                                 >
-                                  {activeUser.avatar_url || activeUser.avatar ? (
-                                    <img src={activeUser.avatar_url || activeUser.avatar} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
+                                  {itemAvatar ? (
+                                    <img
+                                      src={itemAvatar}
+                                      className="w-full h-full object-cover"
+                                      alt=""
+                                      referrerPolicy="no-referrer"
+                                    />
                                   ) : (
-                                    activeUserInitial
+                                    initial
                                   )}
                                 </div>
-                                <div className="flex flex-col min-w-0">
-                                  <h4 className="font-bold text-gray-900 text-[14px] truncate">
-                                    {activeUser.real_name || activeUser.name || "在线协作者"}
-                                  </h4>
-                                </div>
                               </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
 
-                              {/* Attributes Form */}
-                              <div className="flex flex-col gap-2.5 bg-white rounded-xl border border-gray-100 p-3 bg-gradient-to-b from-white to-gray-50/20 shadow-sm">
-                                {[
-                                  { label: "真实姓名 (real_name)", value: activeUser.real_name, key: "real_name" },
-                                  { label: "登录账号 (name)", value: activeUser.name, key: "name" },
-                                  { label: "电子邮箱 (email)", value: activeUser.email, key: "email" },
-                                  { label: "联系电话 (phone)", value: activeUser.phone, key: "phone" }
-                                ].map((field) => (
-                                  <div key={field.key} className="flex flex-col gap-1 border-b border-gray-50 pb-2 last:border-0 last:pb-0">
-                                    <span className="text-[10px] text-gray-400 font-medium">{field.label}</span>
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className="text-xs font-semibold text-gray-700 font-mono select-all truncate">
-                                        {field.value || "无"}
-                                      </span>
-                                      {field.value && (
-                                        <button
-                                          onClick={() => handleCopy(field.value, field.key)}
-                                          className="text-[10px] text-primary-600 hover:text-primary-700 font-semibold hover:bg-primary-50 px-1.5 py-0.5 rounded transition-all shrink-0 select-none border border-transparent hover:border-primary-100"
+                    {/* Online Users Detail Popover */}
+                    {isOnlineUsersOpen &&
+                      (() => {
+                        const activeUser =
+                          displayedUsers.find(
+                            (u) => u.sid === activeOnlineSid,
+                          ) || displayedUsers[0];
+                        if (!activeUser) return null;
+
+                        const activeUserDisplayName =
+                          activeUser.real_name ||
+                          activeUser.name ||
+                          "Co-worker";
+                        const activeUserInitial = activeUserDisplayName
+                          .charAt(0)
+                          .toUpperCase();
+
+                        const activeColors = [
+                          "#EF4444",
+                          "#F97316",
+                          "#F59E0B",
+                          "#10B981",
+                          "#06B6D4",
+                          "#3B82F6",
+                          "#6366F1",
+                          "#8B5CF6",
+                          "#EC4899",
+                          "#14B8A6",
+                        ];
+                        let activeHash = 0;
+                        for (let i = 0; i < activeUserDisplayName.length; i++) {
+                          activeHash =
+                            activeUserDisplayName.charCodeAt(i) +
+                            ((activeHash << 5) - activeHash);
+                        }
+                        const activeColorIndex =
+                          Math.abs(activeHash) % activeColors.length;
+                        const activeAvatarColor =
+                          activeColors[activeColorIndex];
+
+                        const handleCopy = (
+                          text: string,
+                          fieldName: string,
+                        ) => {
+                          navigator.clipboard.writeText(text);
+                          setCopiedField(fieldName);
+                          setTimeout(() => setCopiedField(null), 1500);
+                        };
+
+                        return (
+                          <div className="absolute right-2 top-11 z-[300] w-[360px]">
+                            <ClickOutsideWrapper
+                              onClickOutside={() => setIsOnlineUsersOpen(false)}
+                            >
+                              <div className="bg-white border border-gray-100 shadow-2xl rounded-xl p-4 flex flex-col gap-3 min-w-[320px] animate-in fade-in slide-in-from-top-2 duration-150">
+                                {/* Banner Header */}
+                                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="relative flex h-2 w-2">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                    </span>
+                                    <span className="text-sm font-bold text-gray-800">
+                                      在线参与人员
+                                    </span>
+                                  </div>
+                                  <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                                    {displayedUsers.length} 人在线
+                                  </span>
+                                </div>
+
+                                {/* User Tab Switchers (切换标签栏) */}
+                                <div className="flex gap-1.5 overflow-x-auto pb-2 border-b border-gray-100/80 no-scrollbar">
+                                  {displayedUsers.map((u, idx) => {
+                                    const displayName =
+                                      u.real_name || u.name || "Co-worker";
+                                    const initial = displayName
+                                      .charAt(0)
+                                      .toUpperCase();
+
+                                    let hash = 0;
+                                    for (
+                                      let i = 0;
+                                      i < displayName.length;
+                                      i++
+                                    ) {
+                                      hash =
+                                        displayName.charCodeAt(i) +
+                                        ((hash << 5) - hash);
+                                    }
+                                    const colorIndex =
+                                      Math.abs(hash) % activeColors.length;
+                                    const avatarColor =
+                                      activeColors[colorIndex];
+                                    const isSelected = activeUser.sid === u.sid;
+
+                                    return (
+                                      <button
+                                        key={u.sid || idx}
+                                        onClick={() =>
+                                          setActiveOnlineSid(u.sid || null)
+                                        }
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold whitespace-nowrap transition-all select-none shrink-0 ${
+                                          isSelected
+                                            ? "border-primary-500 bg-primary-50 text-primary-700 shadow-sm animate-pulse-fast"
+                                            : "border-gray-100 bg-gray-50/50 hover:bg-gray-100/80 text-gray-600"
+                                        }`}
+                                      >
+                                        <div
+                                          className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 overflow-hidden"
+                                          style={{
+                                            backgroundColor: avatarColor,
+                                          }}
                                         >
-                                          {copiedField === field.key ? "已复制!" : "复制"}
-                                        </button>
+                                          {u.avatar_url || u.avatar ? (
+                                            <img
+                                              src={u.avatar_url || u.avatar}
+                                              className="w-full h-full object-cover"
+                                              alt=""
+                                              referrerPolicy="no-referrer"
+                                            />
+                                          ) : (
+                                            initial
+                                          )}
+                                        </div>
+                                        <span>{displayName}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                {/* Selected User Details Profile View */}
+                                <div className="flex flex-col gap-3.5 pt-1">
+                                  {/* Avatar and Info Header Card */}
+                                  <div className="flex items-center gap-3 bg-gray-50/50 border border-gray-100/75 p-3 rounded-xl">
+                                    <div
+                                      className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-sm animate-in fade-in duration-300 overflow-hidden"
+                                      style={{
+                                        backgroundColor: activeAvatarColor,
+                                      }}
+                                    >
+                                      {activeUser.avatar_url ||
+                                      activeUser.avatar ? (
+                                        <img
+                                          src={
+                                            activeUser.avatar_url ||
+                                            activeUser.avatar
+                                          }
+                                          className="w-full h-full object-cover"
+                                          alt=""
+                                          referrerPolicy="no-referrer"
+                                        />
+                                      ) : (
+                                        activeUserInitial
                                       )}
                                     </div>
+                                    <div className="flex flex-col min-w-0">
+                                      <h4 className="font-bold text-gray-900 text-[14px] truncate">
+                                        {activeUser.real_name ||
+                                          activeUser.name ||
+                                          "在线协作者"}
+                                      </h4>
+                                    </div>
                                   </div>
-                                ))}
+
+                                  {/* Attributes Form */}
+                                  <div className="flex flex-col gap-2.5 bg-white rounded-xl border border-gray-100 p-3 bg-gradient-to-b from-white to-gray-50/20 shadow-sm">
+                                    {[
+                                      {
+                                        label: "真实姓名 (real_name)",
+                                        value: activeUser.real_name,
+                                        key: "real_name",
+                                      },
+                                      {
+                                        label: "登录账号 (name)",
+                                        value: activeUser.name,
+                                        key: "name",
+                                      },
+                                      {
+                                        label: "电子邮箱 (email)",
+                                        value: activeUser.email,
+                                        key: "email",
+                                      },
+                                      {
+                                        label: "联系电话 (phone)",
+                                        value: activeUser.phone,
+                                        key: "phone",
+                                      },
+                                    ].map((field) => (
+                                      <div
+                                        key={field.key}
+                                        className="flex flex-col gap-1 border-b border-gray-50 pb-2 last:border-0 last:pb-0"
+                                      >
+                                        <span className="text-[10px] text-gray-400 font-medium">
+                                          {field.label}
+                                        </span>
+                                        <div className="flex items-center justify-between gap-2">
+                                          <span className="text-xs font-semibold text-gray-700 font-mono select-all truncate">
+                                            {field.value || "无"}
+                                          </span>
+                                          {field.value && (
+                                            <button
+                                              onClick={() =>
+                                                handleCopy(
+                                                  field.value,
+                                                  field.key,
+                                                )
+                                              }
+                                              className="text-[10px] text-primary-600 hover:text-primary-700 font-semibold hover:bg-primary-50 px-1.5 py-0.5 rounded transition-all shrink-0 select-none border border-transparent hover:border-primary-100"
+                                            >
+                                              {copiedField === field.key
+                                                ? "已复制!"
+                                                : "复制"}
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
+                            </ClickOutsideWrapper>
                           </div>
-                        </ClickOutsideWrapper>
-                      </div>
-                    );
-                  })()}
-                </div>
+                        );
+                      })()}
+                  </div>
                 )}
               </div>
             )}
@@ -5016,7 +5341,7 @@ const App: React.FC<AppProps> = ({
 
             {/* Main View Area */}
             <div
-              className="flex-1 overflow-hidden relative"
+              className="flex-1 flex flex-col overflow-hidden relative min-h-0"
               id="tour-main-content"
             >
               {loading && (
@@ -5024,30 +5349,32 @@ const App: React.FC<AppProps> = ({
                   Loading...
                 </div>
               )}
-            {tables.length === 0 && !loading && !activeTable && (
+              {tables.length === 0 && !loading && !activeTable && (
                 <div className="flex h-full w-full items-center justify-center">
-                    {isTokenDialogOpen ? (
-                      <TokenConfigDialog onClose={() => setIsTokenDialogOpen(false)} />
-                    ) : (
-                      <div className="text-center">
-                        <h3 className="mb-4 text-gray-500">创建一个多维表格</h3>
-                        <div className="flex items-center justify-center gap-4">
-                          <button
-                            onClick={handleOpenAddTableWithMetadata}
-                            className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors font-medium"
-                          >
-                            立即新建表格
-                          </button>
-                           <button
-                            onClick={() => setIsTokenDialogOpen(true)}
-                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors flex items-center gap-2"
-                          >
-                            <ICONS.Settings className="w-4 h-4" /> 配置Token
-                          </button>
-                        </div>
+                  {isTokenDialogOpen ? (
+                    <TokenConfigDialog
+                      onClose={() => setIsTokenDialogOpen(false)}
+                    />
+                  ) : (
+                    <div className="text-center">
+                      <h3 className="mb-4 text-gray-500">创建一个多维表格</h3>
+                      <div className="flex items-center justify-center gap-4">
+                        <button
+                          onClick={handleOpenAddTableWithMetadata}
+                          className="px-4 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors font-medium"
+                        >
+                          立即新建表格
+                        </button>
+                        <button
+                          onClick={() => setIsTokenDialogOpen(true)}
+                          className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors flex items-center gap-2"
+                        >
+                          <ICONS.Settings className="w-4 h-4" /> 配置Token
+                        </button>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
+                </div>
               )}
               {activeTable &&
                 activeView &&
@@ -5392,11 +5719,31 @@ const App: React.FC<AppProps> = ({
                     onClick={() => handleSetDefaultView(viewContextMenu.viewId)}
                     className="w-full text-left px-3 py-2 text-xs hover:bg-primary-50 hover:text-primary-600 flex items-center gap-2 text-gray-700"
                   >
-                    <svg className="w-3.5 h-3.5 text-yellow-500 fill-none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> 设为默认视图
+                    <svg
+                      className="w-3.5 h-3.5 text-yellow-500 fill-none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>{" "}
+                    设为默认视图
                   </button>
                 ) : (
                   <div className="w-full text-left px-3 py-2 text-xs text-gray-400 flex items-center gap-2 cursor-default font-medium">
-                    <svg className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> 默认视图
+                    <svg
+                      className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>{" "}
+                    默认视图
                   </div>
                 );
               })()}
@@ -5478,47 +5825,47 @@ const App: React.FC<AppProps> = ({
             />
           )}
 
-           {/* Search Panel */}
+          {/* Search Panel */}
           {isSearchOpen && activeView && (
-              <motion.div
-                drag
+            <motion.div
+              drag
               dragConstraints={searchContainerRef}
-                dragElastic={0.1}
-                dragMomentum={false}
-                dragControls={dragControls}
-                dragListener={false}
+              dragElastic={0.1}
+              dragMomentum={false}
+              dragControls={dragControls}
+              dragListener={false}
               className="absolute top-4 right-4 z-40"
-              >
-                <div className="bg-white shadow-xl border border-gray-200 rounded-lg p-1.5 flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div
-                    className="cursor-move p-1"
-                    onPointerDown={(e) => dragControls.start(e)}
-                  >
-                    <ICONS.Search className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <input
-                    className="w-40 text-sm outline-none text-gray-700 placeholder-gray-400"
-                    placeholder="查找..."
-                    autoFocus
-                    defaultValue={rowSearchKeyword}
-                    onChange={(e) => handleRowSearch(e.target.value)}
-                  />
-                  <div className="h-4 w-[1px] bg-gray-200 mx-1"></div>
-                  <span className="text-xs text-gray-400 whitespace-nowrap px-1">
-                    {rowSearchKeyword ? `共 ${rows.length} 条` : "请输入关键字"}
-                  </span>
-                  <button
-                    onClick={() => {
-                      setIsSearchOpen(false);
-                      setRowSearchKeyword("");
-                      handleRowSearch("");
-                    }}
-                    className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors ml-1"
-                  >
-                    <ICONS.Close className="w-3.5 h-3.5" />
-                  </button>
+            >
+              <div className="bg-white shadow-xl border border-gray-200 rounded-lg p-1.5 flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div
+                  className="cursor-move p-1"
+                  onPointerDown={(e) => dragControls.start(e)}
+                >
+                  <ICONS.Search className="w-4 h-4 text-gray-400" />
                 </div>
-              </motion.div>
+                <input
+                  className="w-40 text-sm outline-none text-gray-700 placeholder-gray-400"
+                  placeholder="查找..."
+                  autoFocus
+                  defaultValue={rowSearchKeyword}
+                  onChange={(e) => handleRowSearch(e.target.value)}
+                />
+                <div className="h-4 w-[1px] bg-gray-200 mx-1"></div>
+                <span className="text-xs text-gray-400 whitespace-nowrap px-1">
+                  {rowSearchKeyword ? `共 ${rows.length} 条` : "请输入关键字"}
+                </span>
+                <button
+                  onClick={() => {
+                    setIsSearchOpen(false);
+                    setRowSearchKeyword("");
+                    handleRowSearch("");
+                  }}
+                  className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors ml-1"
+                >
+                  <ICONS.Close className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </motion.div>
           )}
         </div>
       </div>
