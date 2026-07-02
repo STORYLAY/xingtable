@@ -1099,234 +1099,118 @@ const CalendarView: React.FC<CalendarViewProps> = ({
 
                 return weeks.map((week, wIdx) => {
                   if (!week || week.length === 0) return null;
-                  const weekStartRaw = week[0].dateStr;
-                  const weekEndRaw = week[6].dateStr;
-                  if (!weekStartRaw || !weekEndRaw) return null;
-                  const weekStart = weekStartRaw;
-                  const weekEnd = weekEndRaw;
-
-                  const weekEvents = rows.filter((row) => {
-                    const val = row.data[targetDateCol.id];
-                    if (!val) return false;
-                    const formattedDate = formatDateForInput(val, false);
-                    let start = formattedDate;
-                    let end = formattedDate;
-
-                    if (targetEndDateCol) {
-                      const endVal = row.data[targetEndDateCol.id];
-                      if (endVal) {
-                        const formattedEndDate = formatDateForInput(
-                          endVal,
-                          false,
-                        );
-                        if (start > formattedEndDate) {
-                          start = formattedEndDate;
-                          end = formattedDate;
-                        } else {
-                          end = formattedEndDate;
-                        }
-                      }
-                    }
-                    return start <= weekEnd && end >= weekStart;
-                  });
-
-                  weekEvents.sort((a, b) => {
-                    const getRange = (row: any) => {
-                      const val = row.data[targetDateCol.id];
-                      let start = formatDateForInput(val, false);
-                      let end = start;
-                      if (targetEndDateCol) {
-                        const endVal = row.data[targetEndDateCol.id];
-                        if (endVal) end = formatDateForInput(endVal, false);
-                      }
-                      return [start, end].sort();
-                    };
-                    const [aStart, aEnd] = getRange(a);
-                    const [bStart, bEnd] = getRange(b);
-
-                    const aLen =
-                      new Date(aEnd).getTime() - new Date(aStart).getTime();
-                    const bLen =
-                      new Date(bEnd).getTime() - new Date(bStart).getTime();
-
-                    if (bLen !== aLen) return bLen - aLen;
-                    return aStart.localeCompare(bStart);
-                  });
-
-                  const levels: { [key: string]: any }[] = [];
-                  const eventLayouts = weekEvents.map((row) => {
-                    const val = row.data[targetDateCol.id];
-                    let start = formatDateForInput(val, false);
-                    let end = start;
-                    if (targetEndDateCol) {
-                      const endVal = row.data[targetEndDateCol.id];
-                      if (endVal) {
-                        let endD = formatDateForInput(endVal, false);
-                        if (start > endD) {
-                          start = endD;
-                          end = formatDateForInput(val, false);
-                        } else {
-                          end = endD;
-                        }
-                      }
-                    }
-
-                    let viewStart = start < weekStart ? weekStart : start;
-                    let viewEnd = end > weekEnd ? weekEnd : end;
-
-                    const startCol = week.findIndex(
-                      (d) => d.dateStr === viewStart,
-                    );
-                    const endCol = week.findIndex((d) => d.dateStr === viewEnd);
-
-                    let level = 0;
-                    while (true) {
-                      let isFree = true;
-                      if (!levels[level]) levels[level] = [];
-                      const sC = Math.max(0, startCol);
-                      const eC = endCol === -1 ? 6 : endCol;
-                      for (let i = sC; i <= eC; i++) {
-                        if (levels[level][i]) {
-                          isFree = false;
-                          break;
-                        }
-                      }
-                      if (isFree) {
-                        for (let i = sC; i <= eC; i++) {
-                          levels[level][i] = true;
-                        }
-                        break;
-                      }
-                      level++;
-                    }
-
-                    return {
-                      row,
-                      startCol: Math.max(0, startCol),
-                      endCol: endCol === -1 ? 6 : endCol,
-                      level,
-                      isStart: start >= weekStart,
-                      isEnd: end <= weekEnd,
-                    };
-                  });
-
                   return (
                     <div
                       key={wIdx}
-                      className="relative flex-1 min-h-[120px] flex flex-col border-b border-gray-100 group/week"
+                      className="grid grid-cols-7 border-b border-gray-100 min-h-[140px] divide-x divide-gray-100 shrink-0"
                     >
-                      {/* Grid background */}
-                      <div className="absolute inset-0 grid grid-cols-7 pointer-events-none z-0">
-                        {week.map((d, dIdx) => (
-                          <div
-                            key={dIdx}
-                            className={`border-r border-gray-100 ${!d.isCurrentMonth ? "bg-gray-50/30" : "bg-white"}`}
-                          />
-                        ))}
-                      </div>
+                      {week.map((d, dIdx) => {
+                        const dayEvents = getRowsForDate(d.dateStr);
+                        const isFirstDayOfMonth = d.dateObj && d.dateObj.getDate() === 1;
+                        const dayLabel = isFirstDayOfMonth ? `${d.dateObj.getMonth() + 1}月1日` : d.day;
 
-                      {/* Dates headers */}
-                      <div className="grid grid-cols-7 z-10 relative">
-                        {week.map((d, dIdx) => (
+                        return (
                           <div
                             key={dIdx}
-                            className="p-1.5 h-8 cursor-pointer flex justify-between items-start group/day"
+                            className={`p-1.5 flex flex-col group/day transition-colors hover:bg-gray-50/20 relative min-h-[140px] min-w-0 ${!d.isCurrentMonth ? "bg-gray-50/10" : "bg-white"}`}
                             onClick={(e) => handleDayClick(e, d.dateStr)}
                           >
-                            {d.day && (
-                              <span
-                                className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full transition-colors ${d.isToday ? "bg-primary-600 text-white shadow-sm" : "text-gray-500 hover:bg-gray-100"}`}
-                              >
-                                {d.day}
-                              </span>
-                            )}
-                            {d.day && (
-                              <button className="opacity-0 group-hover/day:opacity-100 text-gray-400 hover:text-primary-600 p-0.5">
-                                <ICONS.Plus className="w-3.5 h-3.5" />
-                              </button>
+                            {/* Header row of the day cell */}
+                            <div className="flex justify-between items-center h-7 mb-1.5 shrink-0 select-none">
+                              {d.day ? (
+                                <span
+                                  className={`text-xs font-medium px-2 py-0.5 rounded-full transition-colors flex items-center justify-center ${
+                                    d.isToday
+                                      ? "bg-primary-600 text-white shadow-sm"
+                                      : "text-gray-500 hover:text-gray-700"
+                                  }`}
+                                >
+                                  {dayLabel}
+                                </span>
+                              ) : (
+                                <span />
+                              )}
+
+                              {d.day && (
+                                <button
+                                  className="opacity-0 group-hover/day:opacity-100 text-gray-400 hover:text-primary-600 p-0.5 rounded hover:bg-gray-100 transition-all cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDayClick(e, d.dateStr);
+                                  }}
+                                >
+                                  <ICONS.Plus className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Events list within the day cell */}
+                            <div className="flex-1 space-y-1 overflow-hidden min-h-0">
+                              {dayEvents.slice(0, 3).map((row) => {
+                                const title = targetTitleCol
+                                  ? formatFieldValue(
+                                      row.data[targetTitleCol.id],
+                                      targetTitleCol.type,
+                                    )
+                                  : "";
+
+                                // Base colors
+                                let bgClass = "bg-primary-50 text-gray-700 hover:bg-primary-100/70";
+                                let borderClass = "border-primary-500";
+
+                                if (colorFieldId) {
+                                  const val = row.data[colorFieldId];
+                                  const colorField = columns.find(
+                                    (c) => c.id === colorFieldId,
+                                  );
+                                  const colorStyle = getTagColor(
+                                    val,
+                                    colorField?.config?.option_colors,
+                                  );
+                                  if (
+                                    colorStyle.bg &&
+                                    colorStyle.bg !== "bg-gray-100"
+                                  ) {
+                                    bgClass = `${colorStyle.bg.replace("100", "50").replace("500", "50")} text-gray-700 hover:opacity-95`;
+                                    borderClass =
+                                      colorStyle.border ||
+                                      colorStyle.bg.replace("bg-", "border-");
+                                  }
+                                } else if (customColor) {
+                                  bgClass = `${customColor.replace("500", "50")} text-${customColor.replace("500", "700")} hover:opacity-95`;
+                                  borderClass = `border-${customColor.replace("500", "500")}`;
+                                }
+
+                                return (
+                                  <div
+                                    key={row.id}
+                                    onClick={(e) => handleEventClick(e, row.id)}
+                                    onContextMenu={(e) =>
+                                      handleContextMenu(e, row.id)
+                                    }
+                                    className={`h-6 flex items-center px-1.5 cursor-pointer text-xs transition-colors rounded border-l-2 ${bgClass} ${borderClass} font-medium min-w-0`}
+                                  >
+                                    <span className="truncate w-full text-left">
+                                      {highlightText(title) || (
+                                        <span className="opacity-50 font-normal">
+                                          未命名记录
+                                        </span>
+                                      )}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Remaining Indicator */}
+                            {dayEvents.length > 3 && (
+                              <div className="text-[11px] text-gray-400 mt-1 pl-1 shrink-0 font-normal text-left select-none">
+                                还有 {dayEvents.length - 3} 条记录
+                              </div>
                             )}
                           </div>
-                        ))}
-                      </div>
-
-                      {/* Events relative positioning */}
-                      <div
-                        className="relative flex-1 z-10 mt-1 mb-2 min-h-[30px]"
-                        style={{ minHeight: `${levels.length * 28 + 10}px` }}
-                      >
-                        {eventLayouts.map((layout, i) => {
-                          const {
-                            row,
-                            startCol,
-                            endCol,
-                            level,
-                            isStart,
-                            isEnd,
-                          } = layout;
-                          const title = targetTitleCol
-                            ? formatFieldValue(
-                                row.data[targetTitleCol.id],
-                                targetTitleCol.type,
-                              )
-                            : "无标题";
-
-                          // Base colors
-                          let bgClass = "bg-primary-50 text-gray-700";
-                          let borderClass = "border-primary-500";
-
-                          if (colorFieldId) {
-                            const val = row.data[colorFieldId];
-                            const colorField = columns.find(
-                              (c) => c.id === colorFieldId,
-                            );
-                            const colorStyle = getTagColor(
-                              val,
-                              colorField?.config?.option_colors,
-                            );
-                            if (
-                              colorStyle.bg &&
-                              colorStyle.bg !== "bg-gray-100"
-                            ) {
-                              // Convert heavy tag colors to lighter ones for multi-day events
-                              bgClass = colorStyle.bg
-                                .replace("100", "50")
-                                .replace("500", "100");
-                              borderClass =
-                                colorStyle.border ||
-                                colorStyle.bg.replace("bg-", "border-");
-                            }
-                          } else if (customColor) {
-                            bgClass = `${customColor.replace("500", "50")} text-${customColor.replace("500", "700")}`;
-                            borderClass = `border-${customColor.replace("500", "500")}`;
-                          }
-
-                          return (
-                            <div
-                              key={row.id}
-                              onClick={(e) => handleEventClick(e, row.id)}
-                              onContextMenu={(e) =>
-                                handleContextMenu(e, row.id)
-                              }
-                              // Set border explicitly so borderClass matching "border-XXX-500" gives color to the l-2 border
-                              className={`absolute h-6 flex items-center px-2 cursor-pointer text-xs transition-colors hover:bg-opacity-80 ${bgClass} ${isStart ? "rounded ml-1 border-l-2" : "border-l-0 ml-0"} ${isEnd ? "rounded mr-1" : "rounded-none"} ${borderClass} font-medium`}
-
-                              style={{
-                                top: `${level * 28}px`,
-                                left: `${(startCol / 7) * 100}%`,
-                                width: `calc(${((endCol - startCol + 1) / 7) * 100}% - ${isStart ? 4 : 0}px - ${isEnd ? 4 : 0}px)`,
-                              }}
-                            >
-                              <span className="truncate w-full">
-                                {highlightText(title) || (
-                                  <span className="italic opacity-50">
-                                    无标题
-                                  </span>
-                                )}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                        );
+                      })}
                     </div>
                   );
                 });

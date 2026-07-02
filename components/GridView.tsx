@@ -90,6 +90,8 @@ interface GridViewProps {
   cursors?: Record<string, UserCursor>;
   onCursorPositionChange?: (rowId: string | null, colId: string | null, isEditing: boolean) => void;
   readonly?: boolean;
+  page?: number;
+  onPageChange?: (page: number, replace?: boolean) => void;
 }
 
 const CheckboxUnchecked = () => (
@@ -324,6 +326,8 @@ const GridView: React.FC<GridViewProps> = ({
   cursors,
   onCursorPositionChange,
   readonly = false,
+  page = 1,
+  onPageChange,
 }) => {
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [lastSelectedRowId, setLastSelectedRowId] = useState<string | null>(
@@ -339,6 +343,30 @@ const GridView: React.FC<GridViewProps> = ({
   } | null>(null);
   const hiddenInputRef = useRef<HTMLTextAreaElement>(null);
   const isComposingRef = useRef(false);
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const shouldScrollToBottomRef = useRef(false);
+  const [jumpPageInput, setJumpPageInput] = useState<string>(String(page));
+
+  useEffect(() => {
+    setJumpPageInput(String(page));
+  }, [page]);
+
+  const pageSize = 50;
+  const totalRecords = totalCount !== undefined ? totalCount : rows.length;
+  const totalPages = Math.ceil(totalRecords / pageSize) || 1;
+  const isGrouped = groups && groups.length > 0;
+
+  const handleJumpPage = () => {
+    const p = parseInt(jumpPageInput);
+    if (!isNaN(p) && p >= 1 && p <= totalPages) {
+      onPageChange?.(p, true);
+    } else {
+      setJumpPageInput(String(page));
+      toast.error(`请输入有效的页码 (1-${totalPages})`);
+    }
+  };
+
   const [dragFillStart, setDragFillStart] = useState<{
     rowId: string;
     colId: string;
@@ -441,6 +469,45 @@ const GridView: React.FC<GridViewProps> = ({
     () => getVisibleRows(rows, expandedRowIds),
     [rows, expandedRowIds],
   );
+
+  const handleJumpToLastRow = () => {
+    if (isGrouped) {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      }
+      return;
+    }
+
+    if (page === totalPages) {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      }
+      setTimeout(() => {
+        if (visibleRows.length > 0 && columns.length > 0) {
+          const lastRow = visibleRows[visibleRows.length - 1];
+          setFocusedCell({ rowId: lastRow.id, colId: columns[0].id });
+        }
+      }, 50);
+    } else {
+      shouldScrollToBottomRef.current = true;
+      onPageChange?.(totalPages, true);
+    }
+  };
+
+  useEffect(() => {
+    if (shouldScrollToBottomRef.current && !isLoadingMore && page === totalPages) {
+      shouldScrollToBottomRef.current = false;
+      setTimeout(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        }
+        if (visibleRows.length > 0 && columns.length > 0) {
+          const lastRow = visibleRows[visibleRows.length - 1];
+          setFocusedCell({ rowId: lastRow.id, colId: columns[0].id });
+        }
+      }, 150);
+    }
+  }, [page, totalPages, isLoadingMore, visibleRows, columns]);
 
   const selectionRange = useMemo(() => {
     if (!selectionStart || !selectionEnd) {
@@ -3456,7 +3523,7 @@ const GridView: React.FC<GridViewProps> = ({
         }}
       />
       {/* Body */}
-      <div className="flex-1 overflow-auto bg-white" onScroll={handleScroll}>
+      <div ref={scrollContainerRef} className="flex-1 overflow-auto bg-white" onScroll={handleScroll}>
         <div className="w-max min-w-full">
           {/* Header */}
           <div className="flex border-b border-gray-200 bg-[#f8fafc] font-medium text-xs text-gray-500 sticky top-0">
@@ -3853,12 +3920,104 @@ const GridView: React.FC<GridViewProps> = ({
         })()}
 
       {/* Footer Status Bar */}
-      <div className="flex items-center px-4 border-t border-gray-200 bg-white text-[11px] text-gray-500 shrink-0 select-text z-40 relative mt-auto h-8 shadow-sm">
-        共{" "}
-        <span className="mx-1 font-semibold text-gray-700">
-          {totalCount !== undefined ? totalCount : rows.length}
-        </span>{" "}
-        条记录
+      <div className="flex items-center justify-between px-4 border-t border-gray-200 bg-white text-[11px] text-gray-500 shrink-0 select-none z-40 relative mt-auto h-10 shadow-sm">
+        <div className="flex items-center gap-2 select-text">
+          共{" "}
+          <span className="font-semibold text-gray-700">
+            {totalRecords}
+          </span>{" "}
+          条记录
+          {isGrouped && <span className="text-gray-400 font-normal ml-1">(已启用分组)</span>}
+        </div>
+
+        {!isGrouped && totalPages > 1 && (
+          <div className="flex items-center gap-4">
+            {/* Pagination Controls */}
+            <div className="flex items-center gap-1.5">
+              <button
+                disabled={page === 1 || isLoadingMore}
+                onClick={() => onPageChange?.(page - 1, true)}
+                className="w-7 h-7 rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center justify-center bg-white"
+                title="上一页"
+              >
+                <ICONS.ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              
+              <div className="flex items-center gap-1.5">
+                {(() => {
+                  const getPaginationItems = (current: number, total: number) => {
+                    const items: (number | string)[] = [];
+                    if (total <= 7) {
+                      for (let i = 1; i <= total; i++) {
+                        items.push(i);
+                      }
+                    } else {
+                      items.push(1);
+                      let start = Math.max(2, current - 2);
+                      let end = Math.min(total - 1, current + 2);
+                      if (current <= 4) {
+                        end = 5;
+                      } else if (current >= total - 3) {
+                        start = total - 4;
+                      }
+                      if (start > 2) {
+                        items.push('...');
+                      }
+                      for (let i = start; i <= end; i++) {
+                        items.push(i);
+                      }
+                      if (end < total - 1) {
+                        items.push('...');
+                      }
+                      items.push(total);
+                    }
+                    return items;
+                  };
+
+                  return getPaginationItems(page, totalPages).map((item, idx) => {
+                    if (typeof item === 'number') {
+                      const isActive = item === page;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => onPageChange?.(item, true)}
+                          className={`w-7 h-7 rounded border text-[11px] font-medium flex items-center justify-center transition-colors cursor-pointer bg-white ${
+                            isActive
+                              ? "border-primary-500 text-primary-600 font-semibold"
+                              : "border-gray-200 text-gray-600 hover:border-primary-500 hover:text-primary-600"
+                          }`}
+                        >
+                          {item}
+                        </button>
+                      );
+                    } else {
+                      return (
+                        <span key={idx} className="w-7 h-7 flex items-center justify-center text-gray-400 text-[11px] font-medium select-none">
+                          {item}
+                        </span>
+                      );
+                    }
+                  });
+                })()}
+              </div>
+
+              <button
+                disabled={page === totalPages || isLoadingMore}
+                onClick={() => onPageChange?.(page + 1, true)}
+                className="w-7 h-7 rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300 disabled:opacity-40 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center justify-center bg-white"
+                title="下一页"
+              >
+                <ICONS.ChevronRight className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Page size indicator matching the style */}
+              <div className="flex items-center gap-1 border border-gray-200 px-2.5 py-1 rounded text-gray-500 font-normal bg-white text-[11px] h-7 cursor-default ml-1">
+                <span>50 条/页</span>
+                <ICONS.ChevronDown className="w-3 h-3 text-gray-400 ml-0.5" />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* File Preview Modal */}

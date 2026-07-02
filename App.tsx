@@ -1146,7 +1146,7 @@ const App: React.FC<AppProps> = ({
 
   // --- Fetch Rows (Applying View Config) ---
   const fetchRows = useCallback(
-    async (pageNumber = 1, reloadAll = false) => {
+    async (pageNumber = 1, reloadAll = false, replace = false) => {
       if (
         !activeTableId ||
         !activeView ||
@@ -1155,7 +1155,7 @@ const App: React.FC<AppProps> = ({
       )
         return;
       try {
-        if (pageNumber === 1) {
+        if (pageNumber === 1 || replace) {
           setLoading(true);
         } else {
           setIsLoadingMore(true);
@@ -1336,7 +1336,7 @@ const App: React.FC<AppProps> = ({
               });
             }
 
-            if (pageNumber === 1 || reloadAll) {
+            if (pageNumber === 1 || reloadAll || replace) {
               const tree = buildRowTree(res.data.list);
               setRows(tree);
             } else {
@@ -5423,6 +5423,8 @@ const App: React.FC<AppProps> = ({
                     hasMore={hasMore}
                     isLoadingMore={isLoadingMore}
                     onLoadMore={() => fetchRows(page + 1)}
+                    page={page}
+                    onPageChange={(p, replace) => fetchRows(p, false, replace)}
                     onSort={handleColumnSort}
                   />
                 )}

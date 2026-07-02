@@ -20,6 +20,70 @@ import ConfirmDialog from "./ConfirmDialog";
 import { api } from "../services/api";
 import { Select, SelectOption } from "./Select";
 import { OptionColorPicker } from "./CellEditors";
+import { ClickOutsideWrapper } from "./ClickOutsideWrapper";
+
+const SelectorPortalWrapper: React.FC<{
+  anchorRef: React.RefObject<HTMLElement | null>;
+  children: React.ReactNode;
+  onClickOutside?: () => void;
+}> = ({ anchorRef, children, onClickOutside }) => {
+  const [style, setStyle] = useState<React.CSSProperties>({ display: "none" });
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (anchorRef.current) {
+      const rect = anchorRef.current.getBoundingClientRect();
+      setStyle({
+        position: "fixed",
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 9999,
+      });
+    }
+  }, [anchorRef]);
+
+  useEffect(() => {
+    if (!onClickOutside) return;
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      
+      // Ignore clicks inside the popup
+      if (popupRef.current && popupRef.current.contains(target)) {
+        return;
+      }
+      
+      // Ignore clicks on the anchor element (to prevent double toggling)
+      if (anchorRef.current && anchorRef.current.contains(target)) {
+        return;
+      }
+      
+      // Ignore clicks on select dropdowns and date pickers
+      if (
+        target instanceof HTMLElement && 
+        (target.closest('[data-select-dropdown="true"]') || target.closest('.pika-single'))
+      ) {
+        return;
+      }
+
+      onClickOutside();
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onClickOutside, anchorRef]);
+
+  const content = (
+    <div ref={popupRef} style={style} onClick={(e) => e.stopPropagation()}>
+      {children}
+    </div>
+  );
+
+  return createPortal(content, document.body);
+};
 
 export const DateTimePickerPopup: React.FC<{
   type: FieldType;
@@ -629,6 +693,27 @@ export const DateTimePickerPopup: React.FC<{
     </div>
   );
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (popupRef.current && popupRef.current.contains(target)) {
+        return;
+      }
+      if (anchorRef?.current && anchorRef.current.contains(target)) {
+        return;
+      }
+      if (target instanceof HTMLElement && target.closest('.pika-single')) {
+        return;
+      }
+      onClose();
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onClose, anchorRef]);
+
   return createPortal(portalContent, document.body);
 };
 
@@ -695,10 +780,12 @@ const UserSelector = ({
   value,
   onChange,
   onClose,
+  className = "absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 shadow-xl rounded-lg z-[120] flex flex-col overflow-hidden"
 }: {
   value: any;
   onChange: (val: any) => void;
   onClose: () => void;
+  className?: string;
 }) => {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -742,7 +829,7 @@ const UserSelector = ({
   };
 
   return (
-    <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 shadow-xl rounded-lg z-[120] flex flex-col overflow-hidden">
+    <div className={className} onClick={(e) => e.stopPropagation()} data-modal-portal="true">
       <div className="p-2 border-b border-gray-100 flex items-center gap-2">
         <input
           className="flex-1 text-xs px-2 py-1 bg-gray-50 border border-gray-200 rounded outline-none focus:border-primary-500"
@@ -822,10 +909,12 @@ const DepartmentSelector = ({
   value,
   onChange,
   onClose,
+  className = "absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 shadow-xl rounded-lg z-[120] flex flex-col overflow-hidden"
 }: {
   value: any;
   onChange: (val: any) => void;
   onClose: () => void;
+  className?: string;
 }) => {
   const [depts, setDepts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -873,7 +962,7 @@ const DepartmentSelector = ({
   };
 
   return (
-    <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-200 shadow-xl rounded-lg z-[120] flex flex-col overflow-hidden">
+    <div className={className} onClick={(e) => e.stopPropagation()} data-modal-portal="true">
       <div className="p-2 border-b border-gray-100 flex items-center justify-between">
         <span className="text-xs font-bold text-gray-500">选择部门</span>
         <Tooltip
@@ -1022,29 +1111,12 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
 
   const dateContainerRef = React.useRef<HTMLDivElement>(null);
   const timeContainerRef = React.useRef<HTMLDivElement>(null);
+  const userContainerRef = React.useRef<HTMLDivElement>(null);
+  const deptContainerRef = React.useRef<HTMLDivElement>(null);
   const [isDateSelectOpen, setIsDateSelectOpen] = useState(false);
   const [isTimeSelectOpen, setIsTimeSelectOpen] = useState(false);
   const [isDateCalendarOpen, setIsDateCalendarOpen] = useState(false);
   const [isTimeCalendarOpen, setIsTimeCalendarOpen] = useState(false);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        dateContainerRef.current &&
-        !dateContainerRef.current.contains(e.target as Node)
-      ) {
-        setIsDateSelectOpen(false);
-      }
-      if (
-        timeContainerRef.current &&
-        !timeContainerRef.current.contains(e.target as Node)
-      ) {
-        setIsTimeSelectOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   useEffect(() => {
     // Fetch search conditions on mount to ensure Interface 54 is called
@@ -1103,6 +1175,7 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
   const [isAiOptionsLoading, setIsAiOptionsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
+  const [showAiFormulaPopup, setShowAiFormulaPopup] = useState(false);
 
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [showConfirmClear, setShowConfirmClear] = useState(false);
@@ -1624,40 +1697,36 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
         return (
           <section className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase mb-2">
-                公式编辑
-              </label>
-              <textarea
-                value={formula}
-                onChange={(e) => setFormula(e.target.value)}
-                rows={3}
-                placeholder="例如: {单价} * {数量}"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-primary-500 outline-none bg-gray-50"
-              />
-              <div className="text-[10px] text-gray-400 mt-1">
-                使用 {"{列名}"} 来引用表中的其它字段
-              </div>
-            </div>
-
-            <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-100 space-y-2">
-              <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs uppercase">
-                <ICONS.Robot /> AI 公式助手
-              </div>
-              {renderModelSelector()}
-              <div className="flex gap-2">
-                <input
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  placeholder="描述你想要实现的逻辑..."
-                  className="flex-1 text-xs border border-indigo-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-500 outline-none"
-                />
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1">
+                  <label className="text-xs font-semibold text-gray-400 uppercase">
+                    公式内容
+                  </label>
+                  <ICONS.Help className="w-3.5 h-3.5 text-gray-400 cursor-help hover:text-gray-600 transition-colors" title="使用 {列名} 来引用表中的其它字段" />
+                </div>
                 <button
-                  onClick={handleAiGenerateFormula}
-                  disabled={isAiGenerating || !aiPrompt}
-                  className="bg-indigo-600 text-white text-[10px] font-bold px-3 py-1.5 rounded hover:bg-indigo-700 disabled:opacity-50 transition-all shrink-0"
+                  type="button"
+                  onClick={() => setShowAiFormulaPopup(true)}
+                  className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 transition-colors font-semibold cursor-pointer"
                 >
-                  {isAiGenerating ? "生成中..." : "AI 生成"}
+                  <ICONS.Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>AI 生成公式</span>
                 </button>
+              </div>
+
+              <div className="relative flex items-start gap-2 bg-slate-50 border border-gray-200 hover:border-gray-300 rounded-lg p-3 focus-within:ring-2 focus-within:ring-primary-500 focus-within:bg-white focus-within:border-primary-500 transition-all">
+                <ICONS.Edit className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                <textarea
+                  value={formula}
+                  onChange={(e) => setFormula(e.target.value)}
+                  rows={2}
+                  placeholder="例如: {单价} * {数量}"
+                  className="w-full bg-transparent focus:outline-none border-none p-0 text-sm font-mono text-gray-700 resize-none outline-none leading-relaxed"
+                />
+              </div>
+
+              <div className="text-[10px] text-gray-400 mt-1.5">
+                使用 {"{列名}"} 来引用表中的其它字段
               </div>
             </div>
           </section>
@@ -1908,6 +1977,7 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
         return (
           <div className="relative">
             <div
+              ref={userContainerRef}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm min-h-[38px] flex flex-wrap gap-1 cursor-pointer bg-white items-center"
               onClick={() => setShowUserSelector(!showUserSelector)}
             >
@@ -1950,11 +2020,17 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
               )}
             </div>
             {showUserSelector && (
-              <UserSelector
-                value={defaultValue}
-                onChange={(val) => setDefaultValue(val)}
-                onClose={() => setShowUserSelector(false)}
-              />
+              <SelectorPortalWrapper 
+                anchorRef={userContainerRef}
+                onClickOutside={() => setShowUserSelector(false)}
+              >
+                <UserSelector
+                  value={defaultValue}
+                  onChange={(val) => setDefaultValue(val)}
+                  onClose={() => setShowUserSelector(false)}
+                  className="w-full bg-white border border-gray-200 shadow-xl rounded-lg flex flex-col overflow-hidden"
+                />
+              </SelectorPortalWrapper>
             )}
           </div>
         );
@@ -1963,6 +2039,7 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
         return (
           <div className="relative">
             <div
+              ref={deptContainerRef}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm min-h-[38px] flex flex-wrap gap-1 cursor-pointer bg-white items-center"
               onClick={() => setShowDeptSelector(!showDeptSelector)}
             >
@@ -1983,11 +2060,17 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
               )}
             </div>
             {showDeptSelector && (
-              <DepartmentSelector
-                value={defaultValue}
-                onChange={(val) => setDefaultValue(val)}
-                onClose={() => setShowDeptSelector(false)}
-              />
+              <SelectorPortalWrapper 
+                anchorRef={deptContainerRef}
+                onClickOutside={() => setShowDeptSelector(false)}
+              >
+                <DepartmentSelector
+                  value={defaultValue}
+                  onChange={(val) => setDefaultValue(val)}
+                  onClose={() => setShowDeptSelector(false)}
+                  className="w-full bg-white border border-gray-200 shadow-xl rounded-lg flex flex-col overflow-hidden"
+                />
+              </SelectorPortalWrapper>
             )}
           </div>
         );
@@ -2050,66 +2133,71 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
 
             {/* Popover dropdown options */}
             {isDateSelectOpen && (
-              <div className="absolute left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                <div
-                  onClick={() => {
-                    setDefaultValue("");
-                    setIsDateSelectOpen(false);
-                    setIsDateCalendarOpen(false);
-                  }}
-                  className={`px-3 py-2 cursor-pointer text-xs flex items-center justify-between hover:bg-gray-50 ${!defaultValue ? "bg-primary-50/50 text-primary-700 font-medium" : "text-gray-700"}`}
-                >
-                  <span>不选择默认值</span>
-                  {!defaultValue && (
-                    <ICONS.Check className="w-4 h-4 text-primary-600 shrink-0 ml-2" />
-                  )}
-                </div>
-
-                <div
-                  onClick={() => {
-                    setDefaultValue(
-                      isDateTime ? "current_datetime" : "current_date",
-                    );
-                    setIsDateSelectOpen(false);
-                    setIsDateCalendarOpen(false);
-                  }}
-                  className={`px-3 py-2 cursor-pointer text-xs flex items-center justify-between hover:bg-gray-50 ${isCurrentSelected ? "bg-primary-50/50 text-primary-700 font-medium" : "text-gray-700"}`}
-                >
-                  <span>
-                    {isDateTime
-                      ? "添加新记录的创建时间"
-                      : "添加新记录的创建日期"}
-                  </span>
-                  {isCurrentSelected && (
-                    <ICONS.Check className="w-4 h-4 text-primary-600 shrink-0 ml-2" />
-                  )}
-                </div>
-
-                <div
-                  onClick={() => {
-                    setIsDateCalendarOpen(true);
-                    setIsDateSelectOpen(false);
-                  }}
-                  className={`relative px-3 py-2 cursor-pointer text-xs flex items-center justify-between hover:bg-gray-50 text-gray-700 ${isSpecificDate ? "bg-primary-50/50 text-primary-700 font-medium" : ""}`}
-                >
-                  <span>
-                    {isDateTime ? "选择具体日期和时间" : "选择具体日期"}
-                  </span>
-                  <svg
-                    className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+              <SelectorPortalWrapper 
+                anchorRef={dateContainerRef}
+                onClickOutside={() => setIsDateSelectOpen(false)}
+              >
+                <div className="w-full bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                  <div
+                    onClick={() => {
+                      setDefaultValue("");
+                      setIsDateSelectOpen(false);
+                      setIsDateCalendarOpen(false);
+                    }}
+                    className={`px-3 py-2 cursor-pointer text-xs flex items-center justify-between hover:bg-gray-50 ${!defaultValue ? "bg-primary-50/50 text-primary-700 font-medium" : "text-gray-700"}`}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
+                    <span>不选择默认值</span>
+                    {!defaultValue && (
+                      <ICONS.Check className="w-4 h-4 text-primary-600 shrink-0 ml-2" />
+                    )}
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      setDefaultValue(
+                        isDateTime ? "current_datetime" : "current_date",
+                      );
+                      setIsDateSelectOpen(false);
+                      setIsDateCalendarOpen(false);
+                    }}
+                    className={`px-3 py-2 cursor-pointer text-xs flex items-center justify-between hover:bg-gray-50 ${isCurrentSelected ? "bg-primary-50/50 text-primary-700 font-medium" : "text-gray-700"}`}
+                  >
+                    <span>
+                      {isDateTime
+                        ? "添加新记录的创建时间"
+                        : "添加新记录的创建日期"}
+                    </span>
+                    {isCurrentSelected && (
+                      <ICONS.Check className="w-4 h-4 text-primary-600 shrink-0 ml-2" />
+                    )}
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      setIsDateCalendarOpen(true);
+                      setIsDateSelectOpen(false);
+                    }}
+                    className={`relative px-3 py-2 cursor-pointer text-xs flex items-center justify-between hover:bg-gray-50 text-gray-700 ${isSpecificDate ? "bg-primary-50/50 text-primary-700 font-medium" : ""}`}
+                  >
+                    <span>
+                      {isDateTime ? "选择具体日期和时间" : "选择具体日期"}
+                    </span>
+                    <svg
+                      className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-2"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </div>
                 </div>
-              </div>
+              </SelectorPortalWrapper>
             )}
 
             {isDateCalendarOpen && (
@@ -2159,58 +2247,63 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
 
             {/* Popover dropdown options */}
             {isTimeSelectOpen && (
-              <div className="absolute left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                <div
-                  onClick={() => {
-                    setDefaultValue("");
-                    setIsTimeSelectOpen(false);
-                    setIsTimeCalendarOpen(false);
-                  }}
-                  className={`px-3 py-2 cursor-pointer text-xs flex items-center justify-between hover:bg-gray-50 ${!defaultValue ? "bg-primary-50/50 text-primary-700 font-medium" : "text-gray-700"}`}
-                >
-                  <span>不选择默认值</span>
-                  {!defaultValue && (
-                    <ICONS.Check className="w-4 h-4 text-primary-600 shrink-0 ml-2" />
-                  )}
-                </div>
-
-                <div
-                  onClick={() => {
-                    setDefaultValue("current_time");
-                    setIsTimeSelectOpen(false);
-                    setIsTimeCalendarOpen(false);
-                  }}
-                  className={`px-3 py-2 cursor-pointer text-xs flex items-center justify-between hover:bg-gray-50 ${isCurrentSelected ? "bg-primary-50/50 text-primary-700 font-medium" : "text-gray-700"}`}
-                >
-                  <span>添加新记录的当前时间</span>
-                  {isCurrentSelected && (
-                    <ICONS.Check className="w-4 h-4 text-primary-600 shrink-0 ml-2" />
-                  )}
-                </div>
-
-                <div
-                  onClick={() => {
-                    setIsTimeCalendarOpen(true);
-                    setIsTimeSelectOpen(false);
-                  }}
-                  className={`relative px-3 py-2 cursor-pointer text-xs flex items-center justify-between hover:bg-gray-50 text-gray-700 ${isSpecificTime ? "bg-primary-50/50 text-primary-700 font-medium" : ""}`}
-                >
-                  <span>选择具体时间</span>
-                  <svg
-                    className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-2"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+              <SelectorPortalWrapper 
+                anchorRef={timeContainerRef}
+                onClickOutside={() => setIsTimeSelectOpen(false)}
+              >
+                <div className="w-full bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                  <div
+                    onClick={() => {
+                      setDefaultValue("");
+                      setIsTimeSelectOpen(false);
+                      setIsTimeCalendarOpen(false);
+                    }}
+                    className={`px-3 py-2 cursor-pointer text-xs flex items-center justify-between hover:bg-gray-50 ${!defaultValue ? "bg-primary-50/50 text-primary-700 font-medium" : "text-gray-700"}`}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
+                    <span>不选择默认值</span>
+                    {!defaultValue && (
+                      <ICONS.Check className="w-4 h-4 text-primary-600 shrink-0 ml-2" />
+                    )}
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      setDefaultValue("current_time");
+                      setIsTimeSelectOpen(false);
+                      setIsTimeCalendarOpen(false);
+                    }}
+                    className={`px-3 py-2 cursor-pointer text-xs flex items-center justify-between hover:bg-gray-50 ${isCurrentSelected ? "bg-primary-50/50 text-primary-700 font-medium" : "text-gray-700"}`}
+                  >
+                    <span>添加新记录的当前时间</span>
+                    {isCurrentSelected && (
+                      <ICONS.Check className="w-4 h-4 text-primary-600 shrink-0 ml-2" />
+                    )}
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      setIsTimeCalendarOpen(true);
+                      setIsTimeSelectOpen(false);
+                    }}
+                    className={`relative px-3 py-2 cursor-pointer text-xs flex items-center justify-between hover:bg-gray-50 text-gray-700 ${isSpecificTime ? "bg-primary-50/50 text-primary-700 font-medium" : ""}`}
+                  >
+                    <span>选择具体时间</span>
+                    <svg
+                      className="w-3.5 h-3.5 text-gray-400 shrink-0 ml-2"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </div>
                 </div>
-              </div>
+              </SelectorPortalWrapper>
             )}
 
             {isTimeCalendarOpen && (
@@ -2394,6 +2487,103 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
     </div>
   );
 
+  const aiFormulaPopup = showAiFormulaPopup && (
+    <div className="fixed inset-0 bg-black/40 z-[150] flex items-center justify-center p-4">
+      <div 
+        className="fixed inset-0 cursor-default" 
+        onClick={() => setShowAiFormulaPopup(false)} 
+      />
+      <div className="bg-white rounded-xl shadow-2xl border border-gray-100 w-full max-w-md overflow-hidden relative z-[151] flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-slate-50">
+          <div className="flex items-center gap-2 text-indigo-700 font-semibold text-sm">
+            <ICONS.Sparkles className="w-4 h-4 text-indigo-600" />
+            <span>AI 公式助手</span>
+          </div>
+          <button
+            onClick={() => setShowAiFormulaPopup(false)}
+            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1 rounded-lg transition-colors cursor-pointer"
+          >
+            <ICONS.Close className="w-4 h-4" />
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div className="p-4 space-y-4 text-left overflow-y-auto">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-gray-500 uppercase">
+              选择 AI 模型
+            </label>
+            {renderModelSelector()}
+          </div>
+          
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-gray-500 uppercase">
+              逻辑描述
+            </label>
+            <textarea
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder="请用自然语言描述公式的计算逻辑，例如：
+如果【单价】大于100 并且【数量】大于5，则打9折，否则不打折"
+              rows={4}
+              className="w-full text-xs border border-gray-200 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none bg-white text-gray-700 leading-relaxed"
+            />
+          </div>
+
+          <div className="bg-indigo-50/50 rounded-lg p-3 border border-indigo-100/40">
+            <div className="text-xs font-semibold text-indigo-800 mb-1">可用列（点击可插入）：</div>
+            <div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto pr-1">
+              {allColumns.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setAiPrompt(prev => prev + ` {${c.name}} `)}
+                  className="px-2 py-0.5 text-[10px] font-medium bg-indigo-50 text-indigo-600 rounded border border-indigo-100 hover:bg-indigo-100 hover:text-indigo-700 transition-colors cursor-pointer"
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-4 py-3 bg-slate-50 border-t border-gray-100">
+          <button
+            onClick={() => setShowAiFormulaPopup(false)}
+            className="px-3 py-1.5 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+          >
+            取消
+          </button>
+          <button
+            onClick={async () => {
+              await handleAiGenerateFormula();
+              setShowAiFormulaPopup(false);
+            }}
+            disabled={isAiGenerating || !aiPrompt}
+            className="bg-indigo-600 text-white text-xs font-medium px-4 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
+          >
+            {isAiGenerating ? (
+              <>
+                <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                <span>生成中...</span>
+              </>
+            ) : (
+              <>
+                <ICONS.Sparkles className="w-3.5 h-3.5 text-white" />
+                <span>生成公式</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   if (mode === "popover") {
     return createPortal(
       <>
@@ -2428,6 +2618,8 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
           }}
           onCancel={() => setShowConfirmClear(false)}
         />
+
+        {aiFormulaPopup}
       </>,
       document.body,
     );
@@ -2455,6 +2647,8 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
         }}
         onCancel={() => setShowConfirmClear(false)}
       />
+
+      {aiFormulaPopup}
     </div>
   );
 };
